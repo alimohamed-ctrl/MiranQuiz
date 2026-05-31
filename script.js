@@ -1,13 +1,13 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxiIoAgbzsfWSc3lCwTW9Dv-TPKyvz0VbYh8fWc_iJPpXL5R9wp3pXpeWExQLvIhqOy4w/exec";
 let allQuestionsRaw = [];
 let todayQuestions = [];
-let timeLeft = 900; // 15 دقيقة = 900 ثانية
+let timeLeft = 900; // 15 دقيقة
 let timerInterval = null;
 let employeeName = "";
 let todayString = "";
 let currentQuestionIndex = 0; 
 let userAnswers = {}; 
-let furthestQuestionReached = 0; // تتبع أقصى سؤال وصل له وحله الموظف لمنع القفز العشوائي للامام
+let furthestQuestionReached = 0; 
 
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'dark') {
@@ -94,8 +94,10 @@ function buildQuestionNavCircles() {
         circle.id = `nav-circle-${index}`;
         circle.innerText = index + 1;
         circle.onclick = () => {
-            // [شرط أمان مطور]: يسمح له بالانتقال فقط للأسئلة التي مر عليها وحلها، ويقفل القادم
-            if (index <= furthestQuestionReached) {
+            // يسمح بالضغط فقط على الأسئلة الحالية والسابقة التي وصل لها وحلها بالفعل
+            if (index <= furthestQuestionReached && userAnswers[index]) {
+                jumpToQuestion(index);
+            } else if (index === furthestQuestionReached) {
                 jumpToQuestion(index);
             }
         };
@@ -107,7 +109,6 @@ function displayCurrentQuestion() {
     const quizContainer = document.getElementById('quiz-container');
     quizContainer.innerHTML = "";
     
-    // أنيميشن تبديل السؤال بسلاسة
     quizContainer.style.animation = 'none';
     quizContainer.offsetHeight; 
     quizContainer.style.animation = 'fadeInUp 0.3s ease-out';
@@ -137,7 +138,6 @@ function displayCurrentQuestion() {
     
     document.getElementById('prev-btn').style.visibility = currentQuestionIndex === 0 ? 'hidden' : 'visible';
     
-    // إدارة ظهور الأزرار بناءً على حل السؤال
     controlNavigationButtons();
     updateCircleStyles();
 }
@@ -145,34 +145,34 @@ function displayCurrentQuestion() {
 function saveAnswer(selectedOption) {
     userAnswers[currentQuestionIndex] = selectedOption;
     
-    // فتح الخطوة التالية في التنقل العلوي والسفلي
     if (currentQuestionIndex === furthestQuestionReached && furthestQuestionReached < todayQuestions.length - 1) {
         furthestQuestionReached = currentQuestionIndex + 1;
     }
     
     updateProgressBarAndCircles();
-    controlNavigationButtons(); // تحديث فوري لظهور زر التالي أو الإرسال
+    controlNavigationButtons(); 
 }
 
-// دالة التحكم الصارمة بظهور زر التالي وزر الإرسال بناءً على حل الموظف لجميع الأسئلة
+// [تعديل صلب]: زر التالي والإرسال يظهران دائماً ولكن disabled/dimmed حسب شروط الحل الصارمة
 function controlNavigationButtons() {
     const hasAnsweredCurrent = !!userAnswers[currentQuestionIndex];
     const isLastQuestion = currentQuestionIndex === todayQuestions.length - 1;
     const answeredTotalCount = Object.keys(userAnswers).length;
     const hasSolvedAll = answeredTotalCount === todayQuestions.length;
 
-    // زر التالي يظهر فقط إذا كان السؤال الحالي محلولاً وليس الأخير
-    if (hasAnsweredCurrent && !isLastQuestion) {
-        document.getElementById('next-btn').style.display = 'block';
-    } else {
-        document.getElementById('next-btn').style.display = 'none';
-    }
+    const nextBtn = document.getElementById('next-btn');
+    const submitBtn = document.getElementById('submit-btn');
 
-    // زر الإرسال يظهر فقط في السؤال الأخير وبشرط حل جميع الأسئلة بلا استثناء
-    if (isLastQuestion && hasSolvedAll) {
-        document.getElementById('submit-btn').style.display = 'block';
+    if (!isLastQuestion) {
+        nextBtn.style.display = 'block';
+        submitBtn.style.display = 'none';
+        // زر التالي معطل ومظلل (dimmed) حتى يختار إجابة للسؤال الحالي
+        nextBtn.disabled = !hasAnsweredCurrent;
     } else {
-        document.getElementById('submit-btn').style.display = 'none';
+        nextBtn.style.display = 'none';
+        submitBtn.style.display = 'block';
+        // زر الإرسال معطل ومظلل حتى يتم حل كامل الـ 10 أسئلة
+        submitBtn.disabled = !hasSolvedAll;
     }
 }
 
@@ -216,7 +216,7 @@ function updateCircleStyles() {
     todayQuestions.forEach((_, index) => {
         const circle = document.getElementById(`nav-circle-${index}`);
         if (circle) {
-            // فتح وإغلاق إمكانية الضغط على الدائرة بناءً على وصول الموظف إليها
+            // يقفل الأرقام المستقبلية ويفتح فقط الأسئلة اللي مر عليها وحلها
             if (index <= furthestQuestionReached) {
                 circle.classList.add('unlocked');
             } else {
@@ -242,7 +242,7 @@ function startTimer() {
         } else {
             timeLeft--;
             renderTimer();
-            if (timeLeft <= 300) { // 5 دقائق تعادل 300 ثانية
+            if (timeLeft <= 300) { 
                 document.getElementById('timerBox').classList.add('urgent');
             }
         }
@@ -277,6 +277,7 @@ async function submitQuiz(isTimeOut = false) {
     const finalResult = `${score} من ${todayQuestions.length}`;
     const reportDetails = detailsArray.join(" | ");
     
+    // بناء واستدعاء صفحة التقرير والتحليل الموضوعي الفوري
     showResultsPage(employeeName, score);
     
     try {
@@ -290,6 +291,77 @@ async function submitQuiz(isTimeOut = false) {
     }
 }
 
+// [تعديل جوهري]: دالة بناء التحليل الاستشاري المخصص والموضوعي بناء على إجابات كل موظف
+function generatePerformanceAnalysis() {
+    let needIdentMistakes = 0;
+    let courseMapMistakes = 0;
+
+    // الأسئلة 1، 2، 4، 6، 9 تقيس "تحديد الاحتياج واستخراج الوجع"
+    // الأسئلة 3، 5، 7، 8، 10 تقيس "ربط الأداة والدورة الصحيحة من مران"
+    todayQuestions.forEach((q, index) => {
+        let userSelection = userAnswers[index] || "";
+        let correctAnswer = q.answer ? q.answer.toString().trim() : "";
+        let isCorrect = userSelection === correctAnswer;
+
+        if ([0, 1, 3, 5, 8].includes(index)) {
+            if (!isCorrect) needIdentMistakes++;
+        } else {
+            if (!isCorrect) courseMapMistakes++;
+        }
+    });
+
+    const container = document.getElementById('performance-analysis-container');
+    container.innerHTML = "";
+
+    let analysisHTML = `
+        <div style="margin: 25px 0; padding: 25px; background: rgba(148, 163, 184, 0.04); border-radius: 14px; border: 1px solid var(--border-color); text-align: right;">
+            <h3 style="margin-top: 0; color: var(--primary); font-size: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">📊 التحليل الاستشاري التقييمي لأدائك البيعي:</h3>
+    `;
+
+    // الحالة الأولى: مثالي وصحيح بالكامل
+    if (needIdentMistakes === 0 && courseMapMistakes === 0) {
+        analysisHTML += `
+            <p style="font-weight: 700; color: var(--success); font-size: 16px;">🥇 أداء استثنائي ومثالي بالكامل!</p>
+            <p style="font-size: 15px; margin-bottom: 0;"><strong>التحليل الميداني:</strong> مهاراتك في <strong>تحديد احتياج العميل واستخراج الوجع الحقيقي</strong> ممتازة جداً، ولديك دقة متناهية في <strong>ربط العميل الفردي بالدورة والشهادة المهنية المطابقة تماماً لملفه</strong> داخل مركز مران. واصل تقديم هذا المستوى الاستشاري الرفيع في مكالماتك اليومية!</p>
+        `;
+    } 
+    // الحالة الثانية: أخطاء في تحديد الاحتياج فقط
+    else if (needIdentMistakes > 0 && courseMapMistakes === 0) {
+        analysisHTML += `
+            <p style="font-weight: 700; color: #eab308; font-size: 16px;">⚠️ مهارة ربط الدورات ممتازة، ولكن توجد فجوة في "تحديد احتياج العميل"</p>
+            <p style="font-size: 15px;"><strong>التشخيص الموضوعي:</strong> إجاباتك تدل على أنك تحفظ جيداً قائمة دورات مران وتعرف قيمتها، ولكن لديك تسرع في ترشيح الدورة قبل تشخيص "الخلفية العملية أو متطلبات جهة عمل العميل" (مثل إغفال سنوات خبرة المهندس أو اشتراطات الشركة لشهادات السلامة).</p>
+            <p style="font-size: 15px; background: rgba(2, 132, 199, 0.05); padding: 12px; border-radius: 8px; border-right: 4px solid var(--primary); margin-bottom: 0;">
+                <strong>💡 الحل التطويري المطلوب:</strong> في أول دقيقتين من المكالمة، لا تتحدث عن الدورات أبداً. اطرح أسئلة استكشافية مفتوحة مثل: (كم سنة خبرة عندك؟، وش المسمى الوظيفي الحالي؟، وش المشكلة الأساسية اللي تعطلك بالعمل؟)، واجعل العميل يشرح مشكلته بالكامل أولاً.
+            </p>
+        `;
+    } 
+    // الحالة الثالثة: أخطاء في ربط الدورة فقط
+    else if (needIdentMistakes === 0 && courseMapMistakes > 0) {
+        analysisHTML += `
+            <p style="font-weight: 700; color: #eab308; font-size: 16px;">⚠️ مهارة الاستماع وتحديد المشكلة ممتازة، ولكن توجد فجوة في "ربط الدورة الحل"</p>
+            <p style="font-size: 15px;"><strong>التشخيص الموضوعي:</strong> أنت تستمع بشكل رائع وتستخرج أوجاع الموظف بدقة، ولكن تقع في خطأ اختيار "الأداة التدريبية التقنية الأنسب" لمعالجة مشكلته (مثل الخلط الفني بين مخرجات دورة الـ Power BI والـ Excel المتقدم، أو ترشيح بايثون بدلاً من أدوات الذكاء الاصطناعي السريعة للموظف الإداري).</p>
+            <p style="font-size: 15px; background: rgba(2, 132, 199, 0.05); padding: 12px; border-radius: 8px; border-right: 4px solid var(--primary); margin-bottom: 0;">
+                <strong>💡 الحل التطويري المطلوب:</strong> تحتاج فوراً لمراجعة "الحقائب التدريبية والمخرجات التفصيلية" لكل دورة على موقع مركز مران. يجب أن تفهم بدقة الفارق بين تجميع البيانات (Excel) وبين بناء لوحات التحكم التفاعلية المرئية (Power BI) لترشح الأداة الصحيحة للعميل.
+            </p>
+        `;
+    } 
+    // الحالة الرابعة: أخطاء في كلا المهارتين
+    else {
+        analysisHTML += `
+            <p style="font-weight: 700; color: var(--danger); font-size: 16px;">❌ توجد فجوة تدريبية مركبة في كلا المهارتين (تحديد الاحتياج + ربط الدورة)</p>
+            <p style="font-size: 15px;"><strong>التشخيص الموضوعي:</strong> تظهر النتائج وجود استعجال في تقديم الحلول البيعية قبل فهم المشكلة، بالإضافة إلى ضعف في التمييز بين المستويات المهنية للشهادات الدولية المعتمدة بمركز مران (مثل خلط شروط دورة الـ PMP للمدراء ذوي الخبرة، بدورة الـ CAPM المخصصة للمبتدئين والخريجين الجدد).</p>
+            <p style="font-size: 15px; background: rgba(239, 68, 68, 0.05); padding: 15px; border-radius: 8px; border-right: 4px solid var(--danger); margin-bottom: 0; line-height: 1.7;">
+                <strong>💡 خطة التغيير السريعة:</strong><br>
+                1. طبّق قاعدة (80/20) في المكالمات: استمع 80% من الوقت وتحدث 20% فقط لتشخيص الملف بدقة.<br>
+                2. ادرس الفروقات الكبرى بين الدورات على الموقع، خاصة الفارق بين دورات المبتدئين ودورات الخبراء، والحلول الذكية للرد على اعتراض السعر بالقيمة المضافة لمران.
+            </p>
+        `;
+    }
+
+    analysisHTML += `</div>`;
+    container.innerHTML = analysisHTML;
+}
+
 function showResultsPage(name, score) {
     document.getElementById('quiz-view').style.display = 'none';
     document.getElementById('result-view').style.display = 'block';
@@ -300,6 +372,9 @@ function showResultsPage(name, score) {
     document.getElementById('percentageCircle').innerHTML = `${percentage}% <span>النسبة المئوية</span>`;
     document.getElementById('totalScoreText').innerText = `مجموع إجاباتك الصحيحة هو: ${score} من أصل ${todayQuestions.length} سؤال.`;
     
+    // استدعاء محرك التقييم الموضوعي الشخصي وعرضه
+    generatePerformanceAnalysis();
+
     const reviewContainer = document.getElementById('review-container');
     reviewContainer.innerHTML = "";
     
@@ -313,11 +388,20 @@ function showResultsPage(name, score) {
             q.options.forEach(opt => {
                 let cleanedOpt = opt.trim();
                 let cssClass = "";
-                if (cleanedOpt === correctAnswer) cssClass = "correct-opt";
-                else if (cleanedOpt === userSelection && !isCorrect) cssClass = "wrong-opt";
+                
+                if (cleanedOpt === correctAnswer) {
+                    cssClass = "correct-opt";
+                } else if (cleanedOpt === userSelection && !isCorrect) {
+                    cssClass = "wrong-opt";
+                }
                 
                 if (cleanedOpt) {
-                    optionsHTML += `<div class="option-label ${cssClass}"><input type="radio" disabled ${cleanedOpt === userSelection ? 'checked' : ''}><span>${cleanedOpt}</span></div>`;
+                    optionsHTML += `
+                        <div class="option-label ${cssClass}">
+                            <input type="radio" disabled ${cleanedOpt === userSelection ? 'checked' : ''}>
+                            <span>${cleanedOpt}</span>
+                        </div>
+                    `;
                 }
             });
         }
@@ -331,28 +415,27 @@ function showResultsPage(name, score) {
                 <div style="font-weight:600; margin-bottom:12px;">سؤال ${index + 1}: ${q.question}</div>
                 ${optionsHTML}
                 ${feedback}
-            </div>`;
+            </div>
+        `;
     });
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// [دالة جديدة بالكامل]: لتصفير الحالة وإعادة الموظف للرئيسية لإعادة المحاولة بالكامل
+// دالة العودة للرئيسية وإعادة التهيئة الكاملة للأنظمة والتوقيتات
 function resetQuizToHome() {
     if (timerInterval) clearInterval(timerInterval);
     
-    // تصفير جميع المتغيرات البرمجية لتجنب تداخل البيانات القديمة
     timeLeft = 900;
     currentQuestionIndex = 0;
     furthestQuestionReached = 0;
     userAnswers = {};
     
-    // تصفير الواجهات وإعادة البارات لوضع البداية
     document.getElementById('employee-name').value = "";
     document.getElementById('progressBarFill').style.width = "0%";
     document.getElementById('progressPercent').innerText = "0%";
     document.getElementById('timerBox').classList.remove('urgent');
     
-    // التبديل البصري للرئيسية
     document.getElementById('result-view').style.display = 'none';
     document.getElementById('login-view').style.display = 'block';
 }
