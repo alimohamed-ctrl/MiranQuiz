@@ -94,7 +94,6 @@ function buildQuestionNavCircles() {
         circle.id = `nav-circle-${index}`;
         circle.innerText = index + 1;
         circle.onclick = () => {
-            // يسمح بالضغط فقط على الأسئلة الحالية والسابقة التي وصل لها وحلها بالفعل
             if (index <= furthestQuestionReached && userAnswers[index]) {
                 jumpToQuestion(index);
             } else if (index === furthestQuestionReached) {
@@ -153,7 +152,6 @@ function saveAnswer(selectedOption) {
     controlNavigationButtons(); 
 }
 
-// [تعديل صلب]: زر التالي والإرسال يظهران دائماً ولكن disabled/dimmed حسب شروط الحل الصارمة
 function controlNavigationButtons() {
     const hasAnsweredCurrent = !!userAnswers[currentQuestionIndex];
     const isLastQuestion = currentQuestionIndex === todayQuestions.length - 1;
@@ -166,12 +164,10 @@ function controlNavigationButtons() {
     if (!isLastQuestion) {
         nextBtn.style.display = 'block';
         submitBtn.style.display = 'none';
-        // زر التالي معطل ومظلل (dimmed) حتى يختار إجابة للسؤال الحالي
         nextBtn.disabled = !hasAnsweredCurrent;
     } else {
         nextBtn.style.display = 'none';
         submitBtn.style.display = 'block';
-        // زر الإرسال معطل ومظلل حتى يتم حل كامل الـ 10 أسئلة
         submitBtn.disabled = !hasSolvedAll;
     }
 }
@@ -216,7 +212,6 @@ function updateCircleStyles() {
     todayQuestions.forEach((_, index) => {
         const circle = document.getElementById(`nav-circle-${index}`);
         if (circle) {
-            // يقفل الأرقام المستقبلية ويفتح فقط الأسئلة اللي مر عليها وحلها
             if (index <= furthestQuestionReached) {
                 circle.classList.add('unlocked');
             } else {
@@ -260,56 +255,70 @@ async function submitQuiz(isTimeOut = false) {
 
     let score = 0;
     let detailsArray = [];
+    let needIdentMistakes = 0;
+    let courseMapMistakes = 0;
     
     todayQuestions.forEach((q, index) => {
         let userSelection = userAnswers[index] || "";
         let qNum = index + 1;
+        let correctAnswer = q.answer ? q.answer.toString().trim() : "";
+        let isCorrect = userSelection === correctAnswer;
         
         if (!userSelection) {
             detailsArray.push(`س${qNum}: لم يحل`);
+            // في حال انتهى الوقت ولم يحل، تعتبر ثغرة/غلطة
+            if ([0, 1, 3, 5, 8].includes(index)) needIdentMistakes++;
+            else courseMapMistakes++;
         } else {
-            let isCorrect = userSelection === q.answer.toString().trim();
-            if (isCorrect) { score++; detailsArray.push(`س${qNum}: صح`); } 
-            else { detailsArray.push(`س${qNum}: خطأ`); }
+            if (isCorrect) { 
+                score++; 
+                detailsArray.push(`س${qNum}: صح`); 
+            } else { 
+                detailsArray.push(`س${qNum}: خطأ`); 
+                // رصد تصنيف الخطأ موضوعياً لكل موظف
+                if ([0, 1, 3, 5, 8].includes(index)) {
+                    needIdentMistakes++;
+                } else {
+                    courseMapMistakes++;
+                }
+            }
         }
     });
+
+    // [الميزة الجديدة]: تحديد نص العمود الخامس للشيت طبقاً لتقييم الموظف الفعلي
+    let mainProblemValue = "لا يوجد";
+    if (needIdentMistakes > 0 && courseMapMistakes === 0) {
+        mainProblemValue = "تحديد الاحتياج";
+    } else if (needIdentMistakes === 0 && courseMapMistakes > 0) {
+        mainProblemValue = "ربط الدورة";
+    } else if (needIdentMistakes > 0 && courseMapMistakes > 0) {
+        mainProblemValue = "تحديد الاحتياج وربط الدورة";
+    }
 
     const finalResult = `${score} من ${todayQuestions.length}`;
     const reportDetails = detailsArray.join(" | ");
     
-    // بناء واستدعاء صفحة التقرير والتحليل الموضوعي الفوري
-    showResultsPage(employeeName, score);
+    // إظهار التقرير النهائي بالواجهة
+    showResultsPage(employeeName, score, needIdentMistakes, courseMapMistakes);
     
+    // إرسال حزمة البيانات كاملة للشيت بما فيها العمود الخامس الجديد
     try {
         await fetch(API_URL, {
             method: "POST",
             mode: "no-cors", 
-            body: JSON.stringify({ name: employeeName, score: finalResult, details: reportDetails })
+            body: JSON.stringify({ 
+                name: employeeName, 
+                score: finalResult, 
+                details: reportDetails,
+                mainProblem: mainProblemValue // القيمة المضافة
+            })
         });
     } catch (error) {
         console.error("عطل إرسال السجلات:", error);
     }
 }
 
-// [تعديل جوهري]: دالة بناء التحليل الاستشاري المخصص والموضوعي بناء على إجابات كل موظف
-function generatePerformanceAnalysis() {
-    let needIdentMistakes = 0;
-    let courseMapMistakes = 0;
-
-    // الأسئلة 1، 2، 4، 6، 9 تقيس "تحديد الاحتياج واستخراج الوجع"
-    // الأسئلة 3، 5، 7، 8، 10 تقيس "ربط الأداة والدورة الصحيحة من مران"
-    todayQuestions.forEach((q, index) => {
-        let userSelection = userAnswers[index] || "";
-        let correctAnswer = q.answer ? q.answer.toString().trim() : "";
-        let isCorrect = userSelection === correctAnswer;
-
-        if ([0, 1, 3, 5, 8].includes(index)) {
-            if (!isCorrect) needIdentMistakes++;
-        } else {
-            if (!isCorrect) courseMapMistakes++;
-        }
-    });
-
+function generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes) {
     const container = document.getElementById('performance-analysis-container');
     container.innerHTML = "";
 
@@ -318,14 +327,12 @@ function generatePerformanceAnalysis() {
             <h3 style="margin-top: 0; color: var(--primary); font-size: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">📊 التحليل الاستشاري التقييمي لأدائك البيعي:</h3>
     `;
 
-    // الحالة الأولى: مثالي وصحيح بالكامل
     if (needIdentMistakes === 0 && courseMapMistakes === 0) {
         analysisHTML += `
             <p style="font-weight: 700; color: var(--success); font-size: 16px;">🥇 أداء استثنائي ومثالي بالكامل!</p>
             <p style="font-size: 15px; margin-bottom: 0;"><strong>التحليل الميداني:</strong> مهاراتك في <strong>تحديد احتياج العميل واستخراج الوجع الحقيقي</strong> ممتازة جداً، ولديك دقة متناهية في <strong>ربط العميل الفردي بالدورة والشهادة المهنية المطابقة تماماً لملفه</strong> داخل مركز مران. واصل تقديم هذا المستوى الاستشاري الرفيع في مكالماتك اليومية!</p>
         `;
     } 
-    // الحالة الثانية: أخطاء في تحديد الاحتياج فقط
     else if (needIdentMistakes > 0 && courseMapMistakes === 0) {
         analysisHTML += `
             <p style="font-weight: 700; color: #eab308; font-size: 16px;">⚠️ مهارة ربط الدورات ممتازة، ولكن توجد فجوة في "تحديد احتياج العميل"</p>
@@ -335,7 +342,6 @@ function generatePerformanceAnalysis() {
             </p>
         `;
     } 
-    // الحالة الثالثة: أخطاء في ربط الدورة فقط
     else if (needIdentMistakes === 0 && courseMapMistakes > 0) {
         analysisHTML += `
             <p style="font-weight: 700; color: #eab308; font-size: 16px;">⚠️ مهارة الاستماع وتحديد المشكلة ممتازة، ولكن توجد فجوة في "ربط الدورة الحل"</p>
@@ -345,7 +351,6 @@ function generatePerformanceAnalysis() {
             </p>
         `;
     } 
-    // الحالة الرابعة: أخطاء في كلا المهارتين
     else {
         analysisHTML += `
             <p style="font-weight: 700; color: var(--danger); font-size: 16px;">❌ توجد فجوة تدريبية مركبة في كلا المهارتين (تحديد الاحتياج + ربط الدورة)</p>
@@ -362,7 +367,7 @@ function generatePerformanceAnalysis() {
     container.innerHTML = analysisHTML;
 }
 
-function showResultsPage(name, score) {
+function showResultsPage(name, score, needIdentMistakes, courseMapMistakes) {
     document.getElementById('quiz-view').style.display = 'none';
     document.getElementById('result-view').style.display = 'block';
     
@@ -372,8 +377,8 @@ function showResultsPage(name, score) {
     document.getElementById('percentageCircle').innerHTML = `${percentage}% <span>النسبة المئوية</span>`;
     document.getElementById('totalScoreText').innerText = `مجموع إجاباتك الصحيحة هو: ${score} من أصل ${todayQuestions.length} سؤال.`;
     
-    // استدعاء محرك التقييم الموضوعي الشخصي وعرضه
-    generatePerformanceAnalysis();
+    // استدعاء دالة التحليل الممررة
+    generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes);
 
     const reviewContainer = document.getElementById('review-container');
     reviewContainer.innerHTML = "";
@@ -388,20 +393,11 @@ function showResultsPage(name, score) {
             q.options.forEach(opt => {
                 let cleanedOpt = opt.trim();
                 let cssClass = "";
-                
-                if (cleanedOpt === correctAnswer) {
-                    cssClass = "correct-opt";
-                } else if (cleanedOpt === userSelection && !isCorrect) {
-                    cssClass = "wrong-opt";
-                }
+                if (cleanedOpt === correctAnswer) cssClass = "correct-opt";
+                else if (cleanedOpt === userSelection && !isCorrect) cssClass = "wrong-opt";
                 
                 if (cleanedOpt) {
-                    optionsHTML += `
-                        <div class="option-label ${cssClass}">
-                            <input type="radio" disabled ${cleanedOpt === userSelection ? 'checked' : ''}>
-                            <span>${cleanedOpt}</span>
-                        </div>
-                    `;
+                    optionsHTML += `<div class="option-label ${cssClass}"><input type="radio" disabled ${cleanedOpt === userSelection ? 'checked' : ''}><span>${cleanedOpt}</span></div>`;
                 }
             });
         }
@@ -415,14 +411,11 @@ function showResultsPage(name, score) {
                 <div style="font-weight:600; margin-bottom:12px;">سؤال ${index + 1}: ${q.question}</div>
                 ${optionsHTML}
                 ${feedback}
-            </div>
-        `;
+            </div>`;
     });
-    
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// دالة العودة للرئيسية وإعادة التهيئة الكاملة للأنظمة والتوقيتات
 function resetQuizToHome() {
     if (timerInterval) clearInterval(timerInterval);
     
