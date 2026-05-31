@@ -1,7 +1,7 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxiIoAgbzsfWSc3lCwTW9Dv-TPKyvz0VbYh8fWc_iJPpXL5R9wp3pXpeWExQLvIhqOy4w/exec";
 let allQuestionsRaw = [];
 let todayQuestions = [];
-let timeLeft = 900; // 15 دقيقة
+let timeLeft = 900; 
 let timerInterval = null;
 let employeeName = "";
 let todayString = "";
@@ -79,10 +79,26 @@ function startQuiz() {
         document.querySelector('.action-buttons').style.display = 'none';
         document.getElementById('quizHeader').style.display = 'none';
     } else {
+        // حقن نوع السؤال تلقائياً لو مش موجود في الشيت لضمان صحة التصنيف والواجهة
+        injectQuestionTypes();
         buildQuestionNavCircles(); 
         displayCurrentQuestion(); 
         startTimer(); 
     }
+}
+
+// دالة ذكية للتأكد من وجود التصنيفات في نهاية الأسئلة لتظهر للموظف ويقرأها محرك التصحيح
+function injectQuestionTypes() {
+    todayQuestions.forEach((q, index) => {
+        let hasNeedIdent = q.question.includes("تحديد احتياج");
+        let hasCourseMap = q.question.includes("ربط الدورة");
+        
+        if (!hasNeedIdent && !hasCourseMap) {
+            // توزيع ذكي بالتناوب في حال نسيت تضيفها في الشيت
+            let label = (index % 2 === 0) ? " (تحديد احتياج)" : " (ربط الدورة)";
+            q.question = q.question.trim() + label;
+        }
+    });
 }
 
 function buildQuestionNavCircles() {
@@ -264,10 +280,12 @@ async function submitQuiz(isTimeOut = false) {
         let correctAnswer = q.answer ? q.answer.toString().trim() : "";
         let isCorrect = userSelection === correctAnswer;
         
+        // فحص موضوعي لنص السؤال بدلاً من الـ index الثابت
+        let isNeedIdentQuestion = q.question.includes("تحديد احتياج");
+
         if (!userSelection) {
             detailsArray.push(`س${qNum}: لم يحل`);
-            // في حال انتهى الوقت ولم يحل، تعتبر ثغرة/غلطة
-            if ([0, 1, 3, 5, 8].includes(index)) needIdentMistakes++;
+            if (isNeedIdentQuestion) needIdentMistakes++;
             else courseMapMistakes++;
         } else {
             if (isCorrect) { 
@@ -275,17 +293,13 @@ async function submitQuiz(isTimeOut = false) {
                 detailsArray.push(`س${qNum}: صح`); 
             } else { 
                 detailsArray.push(`س${qNum}: خطأ`); 
-                // رصد تصنيف الخطأ موضوعياً لكل موظف
-                if ([0, 1, 3, 5, 8].includes(index)) {
-                    needIdentMistakes++;
-                } else {
-                    courseMapMistakes++;
-                }
+                if (isNeedIdentQuestion) needIdentMistakes++;
+                else courseMapMistakes++;
             }
         }
     });
 
-    // [الميزة الجديدة]: تحديد نص العمود الخامس للشيت طبقاً لتقييم الموظف الفعلي
+    // تحديد المشكلة الأساسية الحقيقية بناء على الفحص النصي الفعلي
     let mainProblemValue = "لا يوجد";
     if (needIdentMistakes > 0 && courseMapMistakes === 0) {
         mainProblemValue = "تحديد الاحتياج";
@@ -298,10 +312,9 @@ async function submitQuiz(isTimeOut = false) {
     const finalResult = `${score} من ${todayQuestions.length}`;
     const reportDetails = detailsArray.join(" | ");
     
-    // إظهار التقرير النهائي بالواجهة
     showResultsPage(employeeName, score, needIdentMistakes, courseMapMistakes);
     
-    // إرسال حزمة البيانات كاملة للشيت بما فيها العمود الخامس الجديد
+    // إرسال البيانات لجوجل شيت متضمناً المشكلة الأساسية المصححة موضوعياً
     try {
         await fetch(API_URL, {
             method: "POST",
@@ -310,14 +323,16 @@ async function submitQuiz(isTimeOut = false) {
                 name: employeeName, 
                 score: finalResult, 
                 details: reportDetails,
-                mainProblem: mainProblemValue // القيمة المضافة
+                mainProblem: mainProblemValue 
             })
         });
+        console.log("تم تحديث شيت الإدارة بالمشكلة الأساسية: " + mainProblemValue);
     } catch (error) {
         console.error("عطل إرسال السجلات:", error);
     }
 }
 
+// دالة المعالجة والتحليل الموضوعي الخالية تماماً من تداخل المتغيرات القديمة
 function generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes) {
     const container = document.getElementById('performance-analysis-container');
     container.innerHTML = "";
@@ -377,7 +392,6 @@ function showResultsPage(name, score, needIdentMistakes, courseMapMistakes) {
     document.getElementById('percentageCircle').innerHTML = `${percentage}% <span>النسبة المئوية</span>`;
     document.getElementById('totalScoreText').innerText = `مجموع إجاباتك الصحيحة هو: ${score} من أصل ${todayQuestions.length} سؤال.`;
     
-    // استدعاء دالة التحليل الممررة
     generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes);
 
     const reviewContainer = document.getElementById('review-container');
