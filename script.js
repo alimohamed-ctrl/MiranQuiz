@@ -12,7 +12,7 @@ let furthestQuestionReached = 0;
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('themeBtn').innerText = "☀️ وضع مضيء";
+        document.getElementById('themeBtn').innerText = "☀️ الوضع المضئ";
     }
     calculateTodayDate();
     preloadQuizData();
@@ -23,11 +23,11 @@ function toggleTheme() {
     const themeBtn = document.getElementById('themeBtn');
     if (currentTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'light');
-        themeBtn.innerText = "🌙 وضع داكن";
+        themeBtn.innerText = "🌙 الوضع الليلي";
         localStorage.setItem('theme', 'light');
     } else {
         document.documentElement.setAttribute('data-theme', 'dark');
-        themeBtn.innerText = "☀️ وضع مضيء";
+        themeBtn.innerText = "☀️ الوضع المضئ";
         localStorage.setItem('theme', 'dark');
     }
 }
