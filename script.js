@@ -79,26 +79,10 @@ function startQuiz() {
         document.querySelector('.action-buttons').style.display = 'none';
         document.getElementById('quizHeader').style.display = 'none';
     } else {
-        // حقن نوع السؤال تلقائياً لو مش موجود في الشيت لضمان صحة التصنيف والواجهة
-        injectQuestionTypes();
         buildQuestionNavCircles(); 
         displayCurrentQuestion(); 
         startTimer(); 
     }
-}
-
-// دالة ذكية للتأكد من وجود التصنيفات في نهاية الأسئلة لتظهر للموظف ويقرأها محرك التصحيح
-function injectQuestionTypes() {
-    todayQuestions.forEach((q, index) => {
-        let hasNeedIdent = q.question.includes("تحديد احتياج");
-        let hasCourseMap = q.question.includes("ربط الدورة");
-        
-        if (!hasNeedIdent && !hasCourseMap) {
-            // توزيع ذكي بالتناوب في حال نسيت تضيفها في الشيت
-            let label = (index % 2 === 0) ? " (تحديد احتياج)" : " (ربط الدورة)";
-            q.question = q.question.trim() + label;
-        }
-    });
 }
 
 function buildQuestionNavCircles() {
@@ -195,6 +179,7 @@ function nextQuestion() {
     }
 }
 
+// دالة العودة للخلف الفورية مع حفظ خيارات الراديو المعلمة مسبقاً
 function prevQuestion() {
     if (currentQuestionIndex > 0) {
         currentQuestionIndex--;
@@ -280,26 +265,27 @@ async function submitQuiz(isTimeOut = false) {
         let correctAnswer = q.answer ? q.answer.toString().trim() : "";
         let isCorrect = userSelection === correctAnswer;
         
-        // فحص موضوعي لنص السؤال بدلاً من الـ index الثابت
-        let isNeedIdentQuestion = q.question.includes("تحديد احتياج");
+        // [تصحيح ذكي ومطلق]: الفحص بناء على العبارات الحقيقية المكتوبة في الشيت بالظبط
+        let isNeedIdent = q.question.includes("تحديد احتياج");
+        let isCourseMap = q.question.includes("أي دورة مناسبة");
 
         if (!userSelection) {
             detailsArray.push(`س${qNum}: لم يحل`);
-            if (isNeedIdentQuestion) needIdentMistakes++;
-            else courseMapMistakes++;
+            if (isNeedIdent) needIdentMistakes++;
+            else if (isCourseMap) courseMapMistakes++;
         } else {
             if (isCorrect) { 
                 score++; 
                 detailsArray.push(`س${qNum}: صح`); 
             } else { 
                 detailsArray.push(`س${qNum}: خطأ`); 
-                if (isNeedIdentQuestion) needIdentMistakes++;
-                else courseMapMistakes++;
+                if (isNeedIdent) needIdentMistakes++;
+                else if (isCourseMap) courseMapMistakes++;
             }
         }
     });
 
-    // تحديد المشكلة الأساسية الحقيقية بناء على الفحص النصي الفعلي
+    // بناء نص العمود الخامس بدقة مطلقة تمنع التداخل
     let mainProblemValue = "لا يوجد";
     if (needIdentMistakes > 0 && courseMapMistakes === 0) {
         mainProblemValue = "تحديد الاحتياج";
@@ -312,9 +298,10 @@ async function submitQuiz(isTimeOut = false) {
     const finalResult = `${score} من ${todayQuestions.length}`;
     const reportDetails = detailsArray.join(" | ");
     
+    // استدعاء واجهة النتيجة والتحليل الموضوعي بالقيم النظيفة
     showResultsPage(employeeName, score, needIdentMistakes, courseMapMistakes);
     
-    // إرسال البيانات لجوجل شيت متضمناً المشكلة الأساسية المصححة موضوعياً
+    // إرسال البيانات فوراً لملف الإكسيل وجوجل شيت بالعمود الخامس المحدث
     try {
         await fetch(API_URL, {
             method: "POST",
@@ -326,13 +313,13 @@ async function submitQuiz(isTimeOut = false) {
                 mainProblem: mainProblemValue 
             })
         });
-        console.log("تم تحديث شيت الإدارة بالمشكلة الأساسية: " + mainProblemValue);
+        console.log("تمت مزامنة السجلات بالمشكلة الحقيقية: " + mainProblemValue);
     } catch (error) {
         console.error("عطل إرسال السجلات:", error);
     }
 }
 
-// دالة المعالجة والتحليل الموضوعي الخالية تماماً من تداخل المتغيرات القديمة
+// محرك بناء تقارير الأداء الفردية والموضوعية 100%
 function generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes) {
     const container = document.getElementById('performance-analysis-container');
     container.innerHTML = "";
