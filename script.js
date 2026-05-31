@@ -1,12 +1,13 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxiIoAgbzsfWSc3lCwTW9Dv-TPKyvz0VbYh8fWc_iJPpXL5R9wp3pXpeWExQLvIhqOy4w/exec";
 let allQuestionsRaw = [];
 let todayQuestions = [];
-let timeLeft = 900; // تم زيادة المدة لـ 15 دقيقة تعادل 900 ثانية
+let timeLeft = 900; // 15 دقيقة = 900 ثانية
 let timerInterval = null;
 let employeeName = "";
 let todayString = "";
-let currentQuestionIndex = 0; // مؤشر تتبع السؤال الحالي المعروض
-let userAnswers = {}; // كائن لحفظ اختيارات الموظف لكي لا تضيع عند التنقل
+let currentQuestionIndex = 0; 
+let userAnswers = {}; 
+let furthestQuestionReached = 0; // تتبع أقصى سؤال وصل له وحله الموظف لمنع القفز العشوائي للامام
 
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'dark') {
@@ -48,8 +49,11 @@ async function preloadQuizData() {
         const startBtn = document.getElementById('start-btn');
         startBtn.disabled = false;
         startBtn.innerText = "ابدأ الاختبار الآن ⏱️";
+        document.getElementById('server-status').innerText = "🟢 تم تحميل أنظمة وقواعد الأسئلة بنجاح.";
+        document.getElementById('server-status').style.color = "#22c55e";
     } catch (error) {
-        document.getElementById('topDateBadge').innerText = "🔴 عطل في الاتصال بالسيرفر! أعد التحديث.";
+        document.getElementById('server-status').innerText = "🔴 فشل الاتصال بقاعدة البيانات! أعد تحديث الصفحة.";
+        document.getElementById('server-status').style.color = "#ef4444";
         console.error(error);
     }
 }
@@ -75,13 +79,12 @@ function startQuiz() {
         document.querySelector('.action-buttons').style.display = 'none';
         document.getElementById('quizHeader').style.display = 'none';
     } else {
-        buildQuestionNavCircles(); // بناء دوائر الأرقام
-        displayCurrentQuestion(); // عرض السؤال الأول
+        buildQuestionNavCircles(); 
+        displayCurrentQuestion(); 
         startTimer(); 
     }
 }
 
-// بناء الدوائر الرقمية ديناميكياً تحت البروجرس بار
 function buildQuestionNavCircles() {
     const container = document.getElementById('navCirclesContainer');
     container.innerHTML = "";
@@ -90,23 +93,31 @@ function buildQuestionNavCircles() {
         circle.className = `nav-circle`;
         circle.id = `nav-circle-${index}`;
         circle.innerText = index + 1;
-        circle.onclick = () => jumpToQuestion(index); // إمكانية القفز لأي سؤال بالضغط
+        circle.onclick = () => {
+            // [شرط أمان مطور]: يسمح له بالانتقال فقط للأسئلة التي مر عليها وحلها، ويقفل القادم
+            if (index <= furthestQuestionReached) {
+                jumpToQuestion(index);
+            }
+        };
         container.appendChild(circle);
     });
 }
 
-// دالة عرض السؤال الحالي فقط (نظام Paging)
 function displayCurrentQuestion() {
     const quizContainer = document.getElementById('quiz-container');
     quizContainer.innerHTML = "";
     
+    // أنيميشن تبديل السؤال بسلاسة
+    quizContainer.style.animation = 'none';
+    quizContainer.offsetHeight; 
+    quizContainer.style.animation = 'fadeInUp 0.3s ease-out';
+
     const q = todayQuestions[currentQuestionIndex];
     let optionsHTML = "";
     
     q.options.forEach(opt => {
         let cleanedOpt = opt.trim();
         if (cleanedOpt) {
-            // التحقق إذا كان الموظف قد حل هذا السؤال مسبقاً لعرض اختياره النشط
             let isChecked = userAnswers[currentQuestionIndex] === cleanedOpt ? 'checked' : '';
             optionsHTML += `
                 <label class="option-label">
@@ -124,28 +135,47 @@ function displayCurrentQuestion() {
         </div>
     `;
     
-    // التحكم بظهور أزرار التالي، السابق، والإرسال
     document.getElementById('prev-btn').style.visibility = currentQuestionIndex === 0 ? 'hidden' : 'visible';
     
-    if (currentQuestionIndex === todayQuestions.length - 1) {
-        document.getElementById('next-btn').style.display = 'none';
-        document.getElementById('submit-btn').style.display = 'block'; // يظهر الإرسال في آخر سؤال فقط
-    } else {
-        document.getElementById('next-btn').style.display = 'block';
-        document.getElementById('submit-btn').style.display = 'none';
-    }
-    
-    // تحديث تلوين الدائرة النشطة حالياً
-    updateActiveCircle();
+    // إدارة ظهور الأزرار بناءً على حل السؤال
+    controlNavigationButtons();
+    updateCircleStyles();
 }
 
-// دالة حفظ الاختيار المباشر وتحديث البارات فورا
 function saveAnswer(selectedOption) {
     userAnswers[currentQuestionIndex] = selectedOption;
+    
+    // فتح الخطوة التالية في التنقل العلوي والسفلي
+    if (currentQuestionIndex === furthestQuestionReached && furthestQuestionReached < todayQuestions.length - 1) {
+        furthestQuestionReached = currentQuestionIndex + 1;
+    }
+    
     updateProgressBarAndCircles();
+    controlNavigationButtons(); // تحديث فوري لظهور زر التالي أو الإرسال
 }
 
-// التنقل بين الأزرار
+// دالة التحكم الصارمة بظهور زر التالي وزر الإرسال بناءً على حل الموظف لجميع الأسئلة
+function controlNavigationButtons() {
+    const hasAnsweredCurrent = !!userAnswers[currentQuestionIndex];
+    const isLastQuestion = currentQuestionIndex === todayQuestions.length - 1;
+    const answeredTotalCount = Object.keys(userAnswers).length;
+    const hasSolvedAll = answeredTotalCount === todayQuestions.length;
+
+    // زر التالي يظهر فقط إذا كان السؤال الحالي محلولاً وليس الأخير
+    if (hasAnsweredCurrent && !isLastQuestion) {
+        document.getElementById('next-btn').style.display = 'block';
+    } else {
+        document.getElementById('next-btn').style.display = 'none';
+    }
+
+    // زر الإرسال يظهر فقط في السؤال الأخير وبشرط حل جميع الأسئلة بلا استثناء
+    if (isLastQuestion && hasSolvedAll) {
+        document.getElementById('submit-btn').style.display = 'block';
+    } else {
+        document.getElementById('submit-btn').style.display = 'none';
+    }
+}
+
 function nextQuestion() {
     if (currentQuestionIndex < todayQuestions.length - 1) {
         currentQuestionIndex++;
@@ -165,15 +195,13 @@ function jumpToQuestion(index) {
     displayCurrentQuestion();
 }
 
-// دالة تحديث الألوان للدوائر وشريط البروجرس بار السفلي
 function updateProgressBarAndCircles() {
     let answeredCount = 0;
-    
     todayQuestions.forEach((_, index) => {
         const circle = document.getElementById(`nav-circle-${index}`);
         if (userAnswers[index]) {
             answeredCount++;
-            if (circle) circle.classList.add('answered'); // تلوين بالأخضر لو تم الحل
+            if (circle) circle.classList.add('answered');
         } else {
             if (circle) circle.classList.remove('answered');
         }
@@ -184,12 +212,19 @@ function updateProgressBarAndCircles() {
     document.getElementById('progressPercent').innerText = `${percentage}%`;
 }
 
-function updateActiveCircle() {
+function updateCircleStyles() {
     todayQuestions.forEach((_, index) => {
         const circle = document.getElementById(`nav-circle-${index}`);
         if (circle) {
+            // فتح وإغلاق إمكانية الضغط على الدائرة بناءً على وصول الموظف إليها
+            if (index <= furthestQuestionReached) {
+                circle.classList.add('unlocked');
+            } else {
+                circle.classList.remove('unlocked');
+            }
+
             if (index === currentQuestionIndex) {
-                circle.classList.add('active'); // تمييز السؤال الحالي بإطار أزرق ونبضة كبر حجم
+                circle.classList.add('active');
             } else {
                 circle.classList.remove('active');
             }
@@ -197,7 +232,6 @@ function updateActiveCircle() {
     });
 }
 
-// دالة التايمر الـ 15 دقيقة والتنبيه باللون الأحمر عند دقيقة 5
 function startTimer() {
     renderTimer();
     timerInterval = setInterval(() => {
@@ -208,9 +242,7 @@ function startTimer() {
         } else {
             timeLeft--;
             renderTimer();
-            
-            // [تعديل مضاف]: لو وصلنا للدقيقة 5 (تساوي 300 ثانية أو أقل) يتحول المؤقت للأحمر
-            if (timeLeft <= 300) {
+            if (timeLeft <= 300) { // 5 دقائق تعادل 300 ثانية
                 document.getElementById('timerBox').classList.add('urgent');
             }
         }
@@ -226,17 +258,6 @@ function renderTimer() {
 async function submitQuiz(isTimeOut = false) {
     if (timerInterval) clearInterval(timerInterval);
 
-    if (!isTimeOut) {
-        let answeredCount = Object.keys(userAnswers).length;
-        if (answeredCount < todayQuestions.length) {
-            const confirmSubmit = confirm(`تنبيه: لقد قمت بحل ${answeredCount} أسئلة فقط من أصل ${todayQuestions.length}. هل تود تأكيد الإرسال للإدارة؟`);
-            if (!confirmSubmit) {
-                startTimer();
-                return;
-            }
-        }
-    }
-    
     let score = 0;
     let detailsArray = [];
     
@@ -248,12 +269,8 @@ async function submitQuiz(isTimeOut = false) {
             detailsArray.push(`س${qNum}: لم يحل`);
         } else {
             let isCorrect = userSelection === q.answer.toString().trim();
-            if (isCorrect) {
-                score++;
-                detailsArray.push(`س${qNum}: صح`);
-            } else {
-                detailsArray.push(`س${qNum}: خطأ`);
-            }
+            if (isCorrect) { score++; detailsArray.push(`س${qNum}: صح`); } 
+            else { detailsArray.push(`س${qNum}: خطأ`); }
         }
     });
 
@@ -296,20 +313,11 @@ function showResultsPage(name, score) {
             q.options.forEach(opt => {
                 let cleanedOpt = opt.trim();
                 let cssClass = "";
-                
-                if (cleanedOpt === correctAnswer) {
-                    cssClass = "correct-opt";
-                } else if (cleanedOpt === userSelection && !isCorrect) {
-                    cssClass = "wrong-opt";
-                }
+                if (cleanedOpt === correctAnswer) cssClass = "correct-opt";
+                else if (cleanedOpt === userSelection && !isCorrect) cssClass = "wrong-opt";
                 
                 if (cleanedOpt) {
-                    optionsHTML += `
-                        <div class="option-label ${cssClass}">
-                            <input type="radio" disabled ${cleanedOpt === userSelection ? 'checked' : ''}>
-                            <span>${cleanedOpt}</span>
-                        </div>
-                    `;
+                    optionsHTML += `<div class="option-label ${cssClass}"><input type="radio" disabled ${cleanedOpt === userSelection ? 'checked' : ''}><span>${cleanedOpt}</span></div>`;
                 }
             });
         }
@@ -323,9 +331,28 @@ function showResultsPage(name, score) {
                 <div style="font-weight:600; margin-bottom:12px;">سؤال ${index + 1}: ${q.question}</div>
                 ${optionsHTML}
                 ${feedback}
-            </div>
-        `;
+            </div>`;
     });
-    
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// [دالة جديدة بالكامل]: لتصفير الحالة وإعادة الموظف للرئيسية لإعادة المحاولة بالكامل
+function resetQuizToHome() {
+    if (timerInterval) clearInterval(timerInterval);
+    
+    // تصفير جميع المتغيرات البرمجية لتجنب تداخل البيانات القديمة
+    timeLeft = 900;
+    currentQuestionIndex = 0;
+    furthestQuestionReached = 0;
+    userAnswers = {};
+    
+    // تصفير الواجهات وإعادة البارات لوضع البداية
+    document.getElementById('employee-name').value = "";
+    document.getElementById('progressBarFill').style.width = "0%";
+    document.getElementById('progressPercent').innerText = "0%";
+    document.getElementById('timerBox').classList.remove('urgent');
+    
+    // التبديل البصري للرئيسية
+    document.getElementById('result-view').style.display = 'none';
+    document.getElementById('login-view').style.display = 'block';
 }
