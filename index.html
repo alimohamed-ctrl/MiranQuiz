@@ -73,7 +73,6 @@
         }
         .theme-toggle:hover { transform: scale(1.05); }
 
-        /* تنسيق زر العودة للرئيسية في أعلى يمين واجهة التقرير */
         .btn-top-right {
             position: absolute;
             top: 20px;
@@ -270,10 +269,7 @@
         .text-success { color: var(--success); }
         .text-danger { color: var(--danger); }
 
-        /* إجبار قسم النتيجة على امتلاك تموضع نسبي لضبط موضع الزر الفوقي */
-        #result-view {
-            position: relative;
-        }
+        #result-view { position: relative; }
 
         .score-circle {
             width: 130px; height: 130px; border-radius: 50%; background: rgba(2, 132, 199, 0.08);
@@ -281,6 +277,20 @@
             align-items: center; margin: 25px auto; font-size: 26px; font-weight: 700;
         }
         .score-circle span { font-size: 13px; color: var(--text-muted); font-weight: 400; }
+
+        /* ستايل لوحة الـ KPI المضافة حديثاً في واجهة التقرير */
+        .kpi-card {
+            background: rgba(148, 163, 184, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .kpi-title { font-weight: 600; font-size: 15px; }
+        .kpi-score { font-weight: 700; font-size: 16px; }
 
         button.main-btn {
             display: block; width: 100%; padding: 16px; background: var(--primary); color: white;
@@ -296,13 +306,13 @@
 <body>
 
 <div class="container">
-    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙 الوضع الليلي</button>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙 وضع داكن</button>
 
     <div id="login-view" style="text-align: center;">
         <h1>اختبار موظفين مبيعات مران</h1>
-        <div class="subtitle">اختبار تحديد مهارات تحديد الاحتياج وربط الدورة بالاحتياج</div>
+        <div class="subtitle">نظام الجدولة الذكي وتقييم الأداء الفوري للفرع</div>
         
-        <div class="date-badge" id="topDateBadge">جاري حساب تاريخ اليوم...</div>
+        <div class="date-badge" id="topDateBadge">🎲 بنك الأسئلة التفاعلي العشوائي: مفعّل</div>
 
         <div class="input-group" style="text-align: right;">
             <label for="employee-name">اسم الموظف بالكامل:</label>
