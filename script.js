@@ -10,16 +10,9 @@ let furthestQuestionReached = 0;
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('themeBtn').innerText = "☀️ الوضع المضئ";
+        document.getElementById('themeBtn').innerText = "☀️ وضع مضيء";
     }
-    
-    // إظهار شارة البنك العشوائي على الواجهة بره
-    document.getElementById('topDateBadge').innerText = "🎲 بنك الأسئلة التفاعلي العشوائي: مفعّل";
-    
-    // زر البدء جاهز فوراً للضغط ولا ينتظر تحميل شيء مسبقاً
-    const startBtn = document.getElementById('start-btn');
-    startBtn.disabled = false;
-    startBtn.innerText = "ابدأ الاختبار الآن ⏱️";
+    preloadQuizData();
 });
 
 function toggleTheme() {
@@ -31,12 +24,29 @@ function toggleTheme() {
         localStorage.setItem('theme', 'light');
     } else {
         document.documentElement.setAttribute('data-theme', 'dark');
-        themeBtn.innerText = "☀️ الوضع المضئ";
+        themeBtn.innerText = "☀️ وضع مضيء";
         localStorage.setItem('theme', 'dark');
     }
 }
 
-// دالة البدء عند ضغط الموظف: تطلب الـ 10 أسئلة العشوائية فوراً من السيرفر
+async function preloadQuizData() {
+    try {
+        const response = await fetch(API_URL);
+        const rawData = await response.json();
+        allQuestionsRaw = rawData;
+        
+        const startBtn = document.getElementById('start-btn');
+        startBtn.disabled = false;
+        startBtn.innerText = "ابدأ الاختبار الآن ⏱️";
+        document.getElementById('server-status').innerText = "🟢 تم تحميل أنظمة وقواعد الأسئلة بنجاح.";
+        document.getElementById('server-status').style.color = "#22c55e";
+    } catch (error) {
+        document.getElementById('server-status').innerText = "🔴 فشل الاتصال بقاعدة البيانات! أعد تحديث الصفحة.";
+        document.getElementById('server-status').style.color = "#ef4444";
+        console.error(error);
+    }
+}
+
 async function startQuiz() {
     const nameInput = document.getElementById('employee-name').value.trim();
     if (!nameInput) {
@@ -45,15 +55,12 @@ async function startQuiz() {
     }
     
     employeeName = nameInput;
-    
-    // تغيير حالة الزرار أثناء سحب الـ 10 أسئلة العشوائية الفريدة
     const startBtn = document.getElementById('start-btn');
     startBtn.disabled = true;
     startBtn.innerText = "جاري تجهيز الاختبار... 🔄";
     document.getElementById('server-status').innerText = "يتم الآن سحب 10 أسئلة عشوائية متوازنة من بنك الأسئلة...";
 
     try {
-        // نطلب من السيرفر توليد الـ 10 أسئلة العشوائية في هذه اللحظة بالذات
         const response = await fetch(API_URL);
         todayQuestions = await response.json();
         
@@ -64,7 +71,6 @@ async function startQuiz() {
             return;
         }
 
-        // إخفاء بوابة الدخول وفتح واجهة الامتحانات
         document.getElementById('login-view').style.display = 'none';
         document.getElementById('quiz-view').style.display = 'block';
 
@@ -250,7 +256,11 @@ async function submitQuiz(isTimeOut = false) {
 
     let score = 0;
     let detailsArray = [];
+    
+    // متغيرات رقمية صارمة للحساب الإحصائي العادل والموضوعي
+    let needIdentTotal = 0;
     let needIdentMistakes = 0;
+    let courseMapTotal = 0;
     let courseMapMistakes = 0;
     
     todayQuestions.forEach((q, index) => {
@@ -259,12 +269,17 @@ async function submitQuiz(isTimeOut = false) {
         let correctAnswer = q.answer ? q.answer.toString().trim() : "";
         let isCorrect = userSelection === correctAnswer;
         
+        // التحقق الدقيق والمطابق للنصوص الفعلية المتواجدة في صورك
         let isNeedIdent = q.question.includes("تحديد احتياج");
+        let isCourseMap = q.question.includes("أي دورة مناسبة") || q.question.includes("مناسبة");
+
+        if (isNeedIdent) needIdentTotal++;
+        if (isCourseMap) courseMapTotal++;
 
         if (!userSelection) {
             detailsArray.push(`س${qNum}: لم يحل`);
             if (isNeedIdent) needIdentMistakes++;
-            else needIdentMistakes++;
+            if (isCourseMap) courseMapMistakes++;
         } else {
             if (isCorrect) { 
                 score++; 
@@ -272,11 +287,12 @@ async function submitQuiz(isTimeOut = false) {
             } else { 
                 detailsArray.push(`س${qNum}: خطأ`); 
                 if (isNeedIdent) needIdentMistakes++;
-                else courseMapMistakes++;
+                if (isCourseMap) courseMapMistakes++;
             }
         }
     });
 
+    // تأمين صياغة المشكلة الأساسية الأربعة للإرسال السليم لجوجل شيت
     let mainProblemValue = "لا يوجد";
     if (needIdentMistakes > 0 && courseMapMistakes === 0) {
         mainProblemValue = "تحديد الاحتياج";
@@ -289,7 +305,8 @@ async function submitQuiz(isTimeOut = false) {
     const finalResult = `${score} من ${todayQuestions.length}`;
     const reportDetails = detailsArray.join(" | ");
     
-    showResultsPage(employeeName, score, needIdentMistakes, courseMapMistakes);
+    // استدعاء لوحة التحكم والتحليل الرقمي الجديد بالقيم الحقيقية الفردية للموظف
+    showResultsPage(employeeName, score, needIdentTotal, needIdentMistakes, courseMapTotal, courseMapMistakes);
     
     try {
         await fetch(API_URL, {
@@ -302,52 +319,81 @@ async function submitQuiz(isTimeOut = false) {
                 mainProblem: mainProblemValue 
             })
         });
+        console.log("تمت مزامنة السجلات بنجاح بالمشكلة: " + mainProblemValue);
     } catch (error) {
         console.error("عطل إرسال السجلات:", error);
     }
 }
 
-function generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes) {
+// محرك لوحة تحكم التحليل الاستشاري الرقمي الفردي والموضوعي بالكامل
+function generatePerformanceAnalysis(needIdentTotal, needIdentMistakes, courseMapTotal, courseMapMistakes) {
     const container = document.getElementById('performance-analysis-container');
     container.innerHTML = "";
 
+    // حساب المعادلات الرقمية لكل موظف على حدة
+    let needScore = needIdentTotal > 0 ? (needIdentTotal - needIdentMistakes) : 0;
+    let courseScore = courseMapTotal > 0 ? (courseMapTotal - courseMapMistakes) : 0;
+
+    let needPercent = needIdentTotal > 0 ? Math.round((needScore / needIdentTotal) * 100) : 100;
+    let coursePercent = courseMapTotal > 0 ? Math.round((courseScore / courseMapTotal) * 100) : 100;
+
+    // تحديد الشارات التقييمية بناءً على الأرقام الحقيقية للموظف
+    let needBadge = needPercent === 100 ? "👑 ممتاز (مكتمل)" : needPercent >= 70 ? "🟡 جيد" : "❌ يحتاج تطوير فوري";
+    let courseBadge = coursePercent === 100 ? "👑 ممتاز (مكتمل)" : coursePercent >= 70 ? "🟡 جيد" : "❌ يحتاج تطوير فوري";
+
     let analysisHTML = `
         <div style="margin: 25px 0; padding: 25px; background: rgba(148, 163, 184, 0.04); border-radius: 14px; border: 1px solid var(--border-color); text-align: right;">
-            <h3 style="margin-top: 0; color: var(--primary); font-size: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">📊 التحليل الاستشاري التقييمي لأدائك البيعي:</h3>
+            <h3 style="margin-top: 0; color: var(--primary); font-size: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">📊 لوحة التحليل ومؤشرات الأداء المباشرة (KPIs):</h3>
+            
+            <div class="kpi-card">
+                <span class="kpi-title">🎯 محور تشخيص وتحديد احتياج العميل:</span>
+                <span class="kpi-score" style="color: ${needPercent >= 70 ? 'var(--success)' : 'var(--danger)'}">${needScore} من ${needIdentTotal} صحيح (${needPercent}%) - ${needBadge}</span>
+            </div>
+            
+            <div class="kpi-card">
+                <span class="kpi-title">💡 محور ربط وتوجيه الدورة التدريبية الحل:</span>
+                <span class="kpi-score" style="color: ${coursePercent >= 70 ? 'var(--success)' : 'var(--danger)'}">${courseScore} من ${courseMapTotal} صحيح (${coursePercent}%) - ${courseBadge}</span>
+            </div>
+            
+            <h4 style="margin: 20px 0 10px 0; color: var(--primary); font-size: 16px;">💡 التوصيات الاستشارية المخصصة لأدائك:</h4>
     `;
 
+    // سيناريو 1: الموظف عبقري وبدون أي أخطاء
     if (needIdentMistakes === 0 && courseMapMistakes === 0) {
         analysisHTML += `
-            <p style="font-weight: 700; color: var(--success); font-size: 16px;">🥇 أداء استثنائي ومثالي بالكامل!</p>
-            <p style="font-size: 15px; margin-bottom: 0;"><strong>التحليل الميداني:</strong> مهاراتك في <strong>تحديد احتياج العميل واستخراج الوجع الحقيقي</strong> ممتازة جداً، ولديك دقة متناهية في <strong>ربط العميل الفردي بالدورة والشهادة المهنية المطابقة تماماً لملفه</strong> داخل مركز مران. واصل تقديم هذا المستوى الاستشاري الرفيع في مكالماتك اليومية!</p>
+            <p style="font-weight: 700; color: var(--success); font-size: 15px;">🥇 كفاءة استشارية متكاملة ومثالية!</p>
+            <p style="font-size: 14px; margin-bottom: 0; color: var(--text-muted);">أنت مستمع رائع وتحدد الفجوة التدريبية للعملاء الأفراد بدقة متناهية، ولديك براعة كاملة في مطابقة تحدياتهم مع الحقائب والاعتمادات الدولية الصحيحة بمركز مران القادة. حافظ على هذا المستوى الرفيع!</p>
         `;
     } 
+    // سيناريو 2: أخطاء في تحديد الاحتياج فقط
     else if (needIdentMistakes > 0 && courseMapMistakes === 0) {
         analysisHTML += `
-            <p style="font-weight: 700; color: #eab308; font-size: 16px;">⚠️ مهارة ربط الدورات ممتازة، ولكن توجد فجوة في "تحديد احتياج العميل"</p>
-            <p style="font-size: 15px;"><strong>التشخيص الموضوعي:</strong> إجاباتك تدل على أنك تحفظ جيداً قائمة دورات مران وتعرف قيمتها، ولكن لديك تسرع في ترشيح الدورة قبل تشخيص "الخلفية العملية أو متطلبات جهة عمل العميل" (مثل إغفال سنوات خبرة المهندس أو اشتراطات الشركة لشهادات السلامة).</p>
-            <p style="font-size: 15px; background: rgba(2, 132, 199, 0.05); padding: 12px; border-radius: 8px; border-right: 4px solid var(--primary); margin-bottom: 0;">
-                <strong>💡 الحل التطويري المطلوب:</strong> في أول دقيقتين من المكالمة، لا تتحدث عن الدورات أبداً. اطرح أسئلة استكشافية مفتوحة مثل: (كم سنة خبرة عندك؟، وش المسمى الوظيفي الحالي؟، وش المشكلة الأساسية اللي تعطلك بالعمل؟),واجعل العميل يشرح مشكلته بالكامل أولاً.
+            <p style="font-weight: 700; color: #eab308; font-size: 15px;">⚠️ فجوة موضوعية في مهارة "استكشاف الاحتياج والتشخيص الأولي"</p>
+            <p style="font-size: 14px; color: var(--text-muted);">أرقامك تدل على معرفتك الممتازة بكتالوج دورات مران القادة، ولكن تقع في خطأ الاستعجال بترشيح الدورة قبل التغلغل في خلفية العميل المهنية (مثل التسرع في ترشيح دورات مخصصة للخبراء لخريج جديد، أو العكس).</p>
+            <p style="font-size: 14px; background: rgba(2, 132, 199, 0.04); padding: 12px; border-radius: 8px; border-right: 4px solid var(--primary); margin-bottom: 0;">
+                <strong>💡 الخطة التطويرية:</strong> في مكالماتك القادمة، ركّز على طرح 3 أسئلة استكشافية إجبارية قبل ذكر أي دورة: (وش طبيعة تخصصك أو دراستك؟، كم سنة خبرة عندك بالمنصب؟، وش الهدف الأكبر اللي تبي الشهادة توصله لك؟).
             </p>
         `;
     } 
+    // سيناريو 3: أخطاء في ربط الدورة فقط (الحالة الظاهرة في صورتك)
     else if (needIdentMistakes === 0 && courseMapMistakes > 0) {
         analysisHTML += `
-            <p style="font-weight: 700; color: #eab308; font-size: 16px;">⚠️ مهارة الاستماع وتحديد المشكلة ممتازة، ولكن توجد فجوة في "ربط الدورة الحل"</p>
-            <p style="font-size: 15px;"><strong>التشخيص الموضوعي:</strong> أنت تستمع بشكل رائع وتستخرج أوجاع الموظف بدقة، ولكن تقع في خطأ اختيار "الأداة التدريبية التقنية الأنسب" لمعالجة مشكلته (مثل الخلط الفني بين مخرجات دورة الـ Power BI والـ Excel المتقدم، أو ترشيح بايثون بدلاً من أدوات الذكاء الاصطناعي السريعة للموظف الإداري).</p>
-            <p style="font-size: 15px; background: rgba(2, 132, 199, 0.05); padding: 12px; border-radius: 8px; border-right: 4px solid var(--primary); margin-bottom: 0;">
-                <strong>💡 الحل التطويري المطلوب:</strong> تحتاج فوراً لمراجعة "الحقائب التدريبية والمخرجات التفصيلية" لكل دورة على موقع مركز مران. يجب أن تفهم بدقة الفارق بين تجميع البيانات (Excel) وبين بناء لوحات التحكم التفاعلية المرئية (Power BI) لترشح الأداة الصحيحة للعميل.
+            <p style="font-weight: 700; color: #eab308; font-size: 15px;">⚠️ فجوة موضوعية في مهارة "مطابقة وربط الدورة الحل بالوجع الحقيقي"</p>
+            <p style="font-size: 14px; color: var(--text-muted);">أنت تستمع بشكل رائع للعميل الفردي وتكتشف مشكلته بدقة، ولكن تقع في خطأ ترشيح "المنتج التدريبي أو الشهادة غير المطابقة هندسياً وتقنياً" لمعالجة وجعه (مثل ترشيح دورة الذكاء الاصطناعي لعميلة تبحث عن إعلانات السوشيال ميديا لزيادة طلبات متجر العطور!).</p>
+            <p style="font-size: 14px; background: rgba(2, 132, 199, 0.04); padding: 12px; border-radius: 8px; border-right: 4px solid var(--primary); margin-bottom: 0;">
+                <strong>💡 الخطة التطويرية:</strong> تحتاج فوراً إلى دراسة "المخرجات والحلول الدقيقة" لكل دورة بمركز مران. تذكر دائماً: العميل الذي يشكو من ضعف مبيعات متجره الإلكتروني أو حملات السوشيال ميديا؛ يحتاج فوراً إلى <strong>(دورة التسويق الرقمي DMI)</strong> وليس الذكاء الاصطناعي أو تحليل البيانات. ادرس الفروقات الكبرى على موقع المركز لترشح الأداة الحل.
             </p>
         `;
     } 
+    // سيناريو 4: فجوة في الاثنين معاً
     else {
         analysisHTML += `
-            <p style="font-weight: 700; color: var(--danger); font-size: 16px;">❌ توجد فجوة تدريبية مركبة في كلا المهارتين (تحديد الاحتياج + ربط الدورة)</p>
-            <p style="font-size: 15px;"><strong>التشخيص الموضوعي:</strong> تظهر النتائج وجود استعجال في تقديم الحلول البيعية قبل فهم المشكلة، بالإضافة إلى ضعف في التمييز بين المستويات المهنية للشهادات الدولية المعتمدة بمركز مران (مثل خلط شروط دورة الـ PMP للمدراء ذوي الخبرة، بدورة الـ CAPM المخصصة للمبتدئين والخريجين الجدد).</p>
-            <p style="font-size: 15px; background: rgba(239, 68, 68, 0.05); padding: 15px; border-radius: 8px; border-right: 4px solid var(--danger); margin-bottom: 0; line-height: 1.7;">
-                <strong>💡 خطة التغيير السريعة:</strong><br>
-                1. طبّق قاعدة (80/20) في المكالمات: استمع 80% من الوقت وتحدث 20% فقط لتشخيص الملف بدقة.<br>
-                2. ادرس الفروقات الكبرى بين الدورات على الموقع، خاصة الفارق بين دورات المبتدئين ودورات الخبراء، والحلول الذكية للرد على اعتراض السعر بالقيمة المضافة لمران.
+            <p style="font-weight: 700; color: var(--danger); font-size: 15px;">❌ فجوة مركبة تحتاج معالجة سريعة (في تشخيص المشكلة وربط الحل التدريبي)</p>
+            <p style="font-size: 14px; color: var(--text-muted);">النتائج الرقمية توضح وجود تسرع في توجيه مكالمة العميل البيعية دون استماع حقيقي، مع ضعف في التمييز الفني بين مخرجات الشهادات المعتمدة بالمركز.</p>
+            <p style="font-size: 14px; background: rgba(239, 68, 68, 0.04); padding: 14px; border-radius: 8px; border-right: 4px solid var(--danger); margin-bottom: 0;">
+                <strong>💡 الخطة التطويرية الشاملة:</strong><br>
+                1. التزم بالاستماع بنسبة 80% من المكالمة، واكتب أوجاع العميل الفردي على ورقة أمَامك قبل الحديث.<br>
+                2. ادرس الفروق بين تخصصات المركز (مثل الفارق بين التسويق الرقمي للشركات الناشئة والمتاجر، وبين تحليل البيانات للإداريين، والموارد البشرية للمبتدئين).
             </p>
         `;
     }
@@ -356,7 +402,7 @@ function generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes) {
     container.innerHTML = analysisHTML;
 }
 
-function showResultsPage(name, score, needIdentMistakes, courseMapMistakes) {
+function showResultsPage(name, score, needIdentTotal, needIdentMistakes, courseMapTotal, courseMapMistakes) {
     document.getElementById('quiz-view').style.display = 'none';
     document.getElementById('result-view').style.display = 'block';
     
@@ -366,7 +412,8 @@ function showResultsPage(name, score, needIdentMistakes, courseMapMistakes) {
     document.getElementById('percentageCircle').innerHTML = `${percentage}% <span>النسبة المئوية</span>`;
     document.getElementById('totalScoreText').innerText = `مجموع إجاباتك الصحيحة هو: ${score} من أصل ${todayQuestions.length} سؤال.`;
     
-    generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes);
+    // تمرير المتغيرات الحقيقية لتوليد لوحة تحكم الـ KPI الفردية الصارمة للموظف
+    generatePerformanceAnalysis(needIdentTotal, needIdentMistakes, courseMapTotal, courseMapMistakes);
 
     const reviewContainer = document.getElementById('review-container');
     reviewContainer.innerHTML = "";
