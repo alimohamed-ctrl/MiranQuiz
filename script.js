@@ -10,7 +10,7 @@ let furthestQuestionReached = 0;
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('themeBtn').innerText = "☀️ وضع مضيء";
+        document.getElementById('themeBtn').innerText = "☀️ الوضع المضيء";
     }
     preloadQuizData();
 });
@@ -24,7 +24,7 @@ function toggleTheme() {
         localStorage.setItem('theme', 'light');
     } else {
         document.documentElement.setAttribute('data-theme', 'dark');
-        themeBtn.innerText = "☀️ وضع مضيء";
+        themeBtn.innerText = "☀️ الوضع المضيء";
         localStorage.setItem('theme', 'dark');
     }
 }
@@ -32,8 +32,7 @@ function toggleTheme() {
 async function preloadQuizData() {
     try {
         const response = await fetch(API_URL);
-        const rawData = await response.json();
-        allQuestionsRaw = rawData;
+        allQuestionsRaw = await response.json();
         
         const startBtn = document.getElementById('start-btn');
         startBtn.disabled = false;
@@ -256,8 +255,6 @@ async function submitQuiz(isTimeOut = false) {
 
     let score = 0;
     let detailsArray = [];
-    
-    // متغيرات رقمية صارمة للحساب الإحصائي العادل والموضوعي
     let needIdentTotal = 0;
     let needIdentMistakes = 0;
     let courseMapTotal = 0;
@@ -269,7 +266,6 @@ async function submitQuiz(isTimeOut = false) {
         let correctAnswer = q.answer ? q.answer.toString().trim() : "";
         let isCorrect = userSelection === correctAnswer;
         
-        // التحقق الدقيق والمطابق للنصوص الفعلية المتواجدة في صورك
         let isNeedIdent = q.question.includes("تحديد احتياج");
         let isCourseMap = q.question.includes("أي دورة مناسبة") || q.question.includes("مناسبة");
 
@@ -292,7 +288,6 @@ async function submitQuiz(isTimeOut = false) {
         }
     });
 
-    // تأمين صياغة المشكلة الأساسية الأربعة للإرسال السليم لجوجل شيت
     let mainProblemValue = "لا يوجد";
     if (needIdentMistakes > 0 && courseMapMistakes === 0) {
         mainProblemValue = "تحديد الاحتياج";
@@ -305,7 +300,6 @@ async function submitQuiz(isTimeOut = false) {
     const finalResult = `${score} من ${todayQuestions.length}`;
     const reportDetails = detailsArray.join(" | ");
     
-    // استدعاء لوحة التحكم والتحليل الرقمي الجديد بالقيم الحقيقية الفردية للموظف
     showResultsPage(employeeName, score, needIdentTotal, needIdentMistakes, courseMapTotal, courseMapMistakes);
     
     try {
@@ -319,25 +313,21 @@ async function submitQuiz(isTimeOut = false) {
                 mainProblem: mainProblemValue 
             })
         });
-        console.log("تمت مزامنة السجلات بنجاح بالمشكلة: " + mainProblemValue);
     } catch (error) {
         console.error("عطل إرسال السجلات:", error);
     }
 }
 
-// محرك لوحة تحكم التحليل الاستشاري الرقمي الفردي والموضوعي بالكامل
 function generatePerformanceAnalysis(needIdentTotal, needIdentMistakes, courseMapTotal, courseMapMistakes) {
     const container = document.getElementById('performance-analysis-container');
     container.innerHTML = "";
 
-    // حساب المعادلات الرقمية لكل موظف على حدة
     let needScore = needIdentTotal > 0 ? (needIdentTotal - needIdentMistakes) : 0;
     let courseScore = courseMapTotal > 0 ? (courseMapTotal - courseMapMistakes) : 0;
 
     let needPercent = needIdentTotal > 0 ? Math.round((needScore / needIdentTotal) * 100) : 100;
     let coursePercent = courseMapTotal > 0 ? Math.round((courseScore / courseMapTotal) * 100) : 100;
 
-    // تحديد الشارات التقييمية بناءً على الأرقام الحقيقية للموظف
     let needBadge = needPercent === 100 ? "👑 ممتاز (مكتمل)" : needPercent >= 70 ? "🟡 جيد" : "❌ يحتاج تطوير فوري";
     let courseBadge = coursePercent === 100 ? "👑 ممتاز (مكتمل)" : coursePercent >= 70 ? "🟡 جيد" : "❌ يحتاج تطوير فوري";
 
@@ -358,14 +348,12 @@ function generatePerformanceAnalysis(needIdentTotal, needIdentMistakes, courseMa
             <h4 style="margin: 20px 0 10px 0; color: var(--primary); font-size: 16px;">💡 التوصيات الاستشارية المخصصة لأدائك:</h4>
     `;
 
-    // سيناريو 1: الموظف عبقري وبدون أي أخطاء
     if (needIdentMistakes === 0 && courseMapMistakes === 0) {
         analysisHTML += `
             <p style="font-weight: 700; color: var(--success); font-size: 15px;">🥇 كفاءة استشارية متكاملة ومثالية!</p>
             <p style="font-size: 14px; margin-bottom: 0; color: var(--text-muted);">أنت مستمع رائع وتحدد الفجوة التدريبية للعملاء الأفراد بدقة متناهية، ولديك براعة كاملة في مطابقة تحدياتهم مع الحقائب والاعتمادات الدولية الصحيحة بمركز مران القادة. حافظ على هذا المستوى الرفيع!</p>
         `;
     } 
-    // سيناريو 2: أخطاء في تحديد الاحتياج فقط
     else if (needIdentMistakes > 0 && courseMapMistakes === 0) {
         analysisHTML += `
             <p style="font-weight: 700; color: #eab308; font-size: 15px;">⚠️ فجوة موضوعية في مهارة "استكشاف الاحتياج والتشخيص الأولي"</p>
@@ -375,7 +363,6 @@ function generatePerformanceAnalysis(needIdentTotal, needIdentMistakes, courseMa
             </p>
         `;
     } 
-    // سيناريو 3: أخطاء في ربط الدورة فقط (الحالة الظاهرة في صورتك)
     else if (needIdentMistakes === 0 && courseMapMistakes > 0) {
         analysisHTML += `
             <p style="font-weight: 700; color: #eab308; font-size: 15px;">⚠️ فجوة موضوعية في مهارة "مطابقة وربط الدورة الحل بالوجع الحقيقي"</p>
@@ -385,7 +372,6 @@ function generatePerformanceAnalysis(needIdentTotal, needIdentMistakes, courseMa
             </p>
         `;
     } 
-    // سيناريو 4: فجوة في الاثنين معاً
     else {
         analysisHTML += `
             <p style="font-weight: 700; color: var(--danger); font-size: 15px;">❌ فجوة مركبة تحتاج معالجة سريعة (في تشخيص المشكلة وربط الحل التدريبي)</p>
@@ -412,7 +398,6 @@ function showResultsPage(name, score, needIdentTotal, needIdentMistakes, courseM
     document.getElementById('percentageCircle').innerHTML = `${percentage}% <span>النسبة المئوية</span>`;
     document.getElementById('totalScoreText').innerText = `مجموع إجاباتك الصحيحة هو: ${score} من أصل ${todayQuestions.length} سؤال.`;
     
-    // تمرير المتغيرات الحقيقية لتوليد لوحة تحكم الـ KPI الفردية الصارمة للموظف
     generatePerformanceAnalysis(needIdentTotal, needIdentMistakes, courseMapTotal, courseMapMistakes);
 
     const reviewContainer = document.getElementById('review-container');
@@ -451,6 +436,7 @@ function showResultsPage(name, score, needIdentTotal, needIdentMistakes, courseM
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// [إعادة الإصلاح والتفعيل الجذري]: تصفير الحالة وتنشيط الأزرار برمجياً بالكامل لإعادة الاختبار فوراً
 function resetQuizToHome() {
     if (timerInterval) clearInterval(timerInterval);
     
@@ -459,11 +445,20 @@ function resetQuizToHome() {
     furthestQuestionReached = 0;
     userAnswers = {};
     
+    // تصفير واجهة الإدخال
     document.getElementById('employee-name').value = "";
     document.getElementById('progressBarFill').style.width = "0%";
     document.getElementById('progressPercent').innerText = "0%";
     document.getElementById('timerBox').classList.remove('urgent');
     
+    // إعادة تنشيط زر ابدأ وتعديل نصوص التحميل فوراً للموظف القادم أو المحاولة التالية
+    const startBtn = document.getElementById('start-btn');
+    startBtn.disabled = false;
+    startBtn.innerText = "ابدأ الاختبار الآن ⏱️";
+    document.getElementById('server-status').innerText = "🟢 تم إعادة تهيئة النظام والأسئلة جاهزة للمحاولة الجديدة.";
+    document.getElementById('server-status').style.color = "#22c55e";
+    
+    // تبديل الواجهة للبداية
     document.getElementById('result-view').style.display = 'none';
     document.getElementById('login-view').style.display = 'block';
 }
