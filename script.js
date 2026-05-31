@@ -1,10 +1,8 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxiIoAgbzsfWSc3lCwTW9Dv-TPKyvz0VbYh8fWc_iJPpXL5R9wp3pXpeWExQLvIhqOy4w/exec";
-let allQuestionsRaw = [];
 let todayQuestions = [];
-let timeLeft = 900; 
+let timeLeft = 900; // 15 دقيقة
 let timerInterval = null;
 let employeeName = "";
-let todayString = "";
 let currentQuestionIndex = 0; 
 let userAnswers = {}; 
 let furthestQuestionReached = 0; 
@@ -12,10 +10,16 @@ let furthestQuestionReached = 0;
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('themeBtn').innerText = "☀️ الوضع المضئ";
+        document.getElementById('themeBtn').innerText = "☀️ وضع مضيء";
     }
-    calculateTodayDate();
-    preloadQuizData();
+    
+    // إظهار شارة البنك العشوائي على الواجهة بره
+    document.getElementById('topDateBadge').innerText = "🎲 بنك الأسئلة التفاعلي العشوائي: مفعّل";
+    
+    // زر البدء جاهز فوراً للضغط ولا ينتظر تحميل شيء مسبقاً
+    const startBtn = document.getElementById('start-btn');
+    startBtn.disabled = false;
+    startBtn.innerText = "ابدأ الاختبار الآن ⏱️";
 });
 
 function toggleTheme() {
@@ -23,42 +27,17 @@ function toggleTheme() {
     const themeBtn = document.getElementById('themeBtn');
     if (currentTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'light');
-        themeBtn.innerText = "🌙 الوضع الليلي";
+        themeBtn.innerText = "🌙 وضع داكن";
         localStorage.setItem('theme', 'light');
     } else {
         document.documentElement.setAttribute('data-theme', 'dark');
-        themeBtn.innerText = "☀️ الوضع المضئ";
+        themeBtn.innerText = "☀️ وضع مضيء";
         localStorage.setItem('theme', 'dark');
     }
 }
 
-function calculateTodayDate() {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0'); 
-    const dd = String(now.getDate()).padStart(2, '0');
-    todayString = `${yyyy}-${mm}-${dd}`;
-    document.getElementById('topDateBadge').innerText = `📅 اختبار اليوم المجدول: ${todayString}`;
-}
-
-async function preloadQuizData() {
-    try {
-        const response = await fetch(API_URL);
-        allQuestionsRaw = await response.json();
-        
-        const startBtn = document.getElementById('start-btn');
-        startBtn.disabled = false;
-        startBtn.innerText = "ابدأ الاختبار الآن ⏱️";
-        document.getElementById('server-status').innerText = "🟢 تم تحميل أنظمة وقواعد الأسئلة بنجاح.";
-        document.getElementById('server-status').style.color = "#22c55e";
-    } catch (error) {
-        document.getElementById('server-status').innerText = "🔴 فشل الاتصال بقاعدة البيانات! أعد تحديث الصفحة.";
-        document.getElementById('server-status').style.color = "#ef4444";
-        console.error(error);
-    }
-}
-
-function startQuiz() {
+// دالة البدء عند ضغط الموظف: تطلب الـ 10 أسئلة العشوائية فوراً من السيرفر
+async function startQuiz() {
     const nameInput = document.getElementById('employee-name').value.trim();
     if (!nameInput) {
         alert("تنبيه إدارة مران: يرجى كتابة اسمك الكامل أولاً قبل بدء الاختبار!");
@@ -66,22 +45,38 @@ function startQuiz() {
     }
     
     employeeName = nameInput;
-    todayQuestions = allQuestionsRaw.filter(q => q.date && q.date.toString().trim() === todayString);
+    
+    // تغيير حالة الزرار أثناء سحب الـ 10 أسئلة العشوائية الفريدة
+    const startBtn = document.getElementById('start-btn');
+    startBtn.disabled = true;
+    startBtn.innerText = "جاري تجهيز الاختبار... 🔄";
+    document.getElementById('server-status').innerText = "يتم الآن سحب 10 أسئلة عشوائية متوازنة من بنك الأسئلة...";
 
-    document.getElementById('login-view').style.display = 'none';
-    document.getElementById('quiz-view').style.display = 'block';
+    try {
+        // نطلب من السيرفر توليد الـ 10 أسئلة العشوائية في هذه اللحظة بالذات
+        const response = await fetch(API_URL);
+        todayQuestions = await response.json();
+        
+        if (todayQuestions.length === 0) {
+            alert("تنبيه: بنك الأسئلة فارغ حالياً بملف الإدارة!");
+            startBtn.disabled = false;
+            startBtn.innerText = "ابدأ الاختبار الآن ⏱️";
+            return;
+        }
 
-    if (todayQuestions.length === 0) {
-        document.getElementById('quiz-container').innerHTML = `
-            <div style="text-align:center; color:var(--danger); font-weight:700; padding:20px; background:rgba(239,68,68,0.05); border-radius:8px; border:1px solid var(--danger);">
-                ⚠️ لا توجد أسئلة مخصصة لتاريخ اليوم (${todayString}) في ملف الإدارة! 
-            </div>`;
-        document.querySelector('.action-buttons').style.display = 'none';
-        document.getElementById('quizHeader').style.display = 'none';
-    } else {
+        // إخفاء بوابة الدخول وفتح واجهة الامتحانات
+        document.getElementById('login-view').style.display = 'none';
+        document.getElementById('quiz-view').style.display = 'block';
+
         buildQuestionNavCircles(); 
         displayCurrentQuestion(); 
         startTimer(); 
+        
+    } catch (error) {
+        alert("🔴 عطل في الاتصال بالسيرفر، يرجى التحقق من الإنترنت وإعادة المحاولة.");
+        startBtn.disabled = false;
+        startBtn.innerText = "ابدأ الاختبار الآن ⏱️";
+        console.error(error);
     }
 }
 
@@ -179,7 +174,6 @@ function nextQuestion() {
     }
 }
 
-// دالة العودة للخلف الفورية مع حفظ خيارات الراديو المعلمة مسبقاً
 function prevQuestion() {
     if (currentQuestionIndex > 0) {
         currentQuestionIndex--;
@@ -265,14 +259,12 @@ async function submitQuiz(isTimeOut = false) {
         let correctAnswer = q.answer ? q.answer.toString().trim() : "";
         let isCorrect = userSelection === correctAnswer;
         
-        // [تصحيح ذكي ومطلق]: الفحص بناء على العبارات الحقيقية المكتوبة في الشيت بالظبط
         let isNeedIdent = q.question.includes("تحديد احتياج");
-        let isCourseMap = q.question.includes("أي دورة مناسبة");
 
         if (!userSelection) {
             detailsArray.push(`س${qNum}: لم يحل`);
             if (isNeedIdent) needIdentMistakes++;
-            else if (isCourseMap) courseMapMistakes++;
+            else needIdentMistakes++;
         } else {
             if (isCorrect) { 
                 score++; 
@@ -280,12 +272,11 @@ async function submitQuiz(isTimeOut = false) {
             } else { 
                 detailsArray.push(`س${qNum}: خطأ`); 
                 if (isNeedIdent) needIdentMistakes++;
-                else if (isCourseMap) courseMapMistakes++;
+                else courseMapMistakes++;
             }
         }
     });
 
-    // بناء نص العمود الخامس بدقة مطلقة تمنع التداخل
     let mainProblemValue = "لا يوجد";
     if (needIdentMistakes > 0 && courseMapMistakes === 0) {
         mainProblemValue = "تحديد الاحتياج";
@@ -298,10 +289,8 @@ async function submitQuiz(isTimeOut = false) {
     const finalResult = `${score} من ${todayQuestions.length}`;
     const reportDetails = detailsArray.join(" | ");
     
-    // استدعاء واجهة النتيجة والتحليل الموضوعي بالقيم النظيفة
     showResultsPage(employeeName, score, needIdentMistakes, courseMapMistakes);
     
-    // إرسال البيانات فوراً لملف الإكسيل وجوجل شيت بالعمود الخامس المحدث
     try {
         await fetch(API_URL, {
             method: "POST",
@@ -313,13 +302,11 @@ async function submitQuiz(isTimeOut = false) {
                 mainProblem: mainProblemValue 
             })
         });
-        console.log("تمت مزامنة السجلات بالمشكلة الحقيقية: " + mainProblemValue);
     } catch (error) {
         console.error("عطل إرسال السجلات:", error);
     }
 }
 
-// محرك بناء تقارير الأداء الفردية والموضوعية 100%
 function generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes) {
     const container = document.getElementById('performance-analysis-container');
     container.innerHTML = "";
@@ -340,7 +327,7 @@ function generatePerformanceAnalysis(needIdentMistakes, courseMapMistakes) {
             <p style="font-weight: 700; color: #eab308; font-size: 16px;">⚠️ مهارة ربط الدورات ممتازة، ولكن توجد فجوة في "تحديد احتياج العميل"</p>
             <p style="font-size: 15px;"><strong>التشخيص الموضوعي:</strong> إجاباتك تدل على أنك تحفظ جيداً قائمة دورات مران وتعرف قيمتها، ولكن لديك تسرع في ترشيح الدورة قبل تشخيص "الخلفية العملية أو متطلبات جهة عمل العميل" (مثل إغفال سنوات خبرة المهندس أو اشتراطات الشركة لشهادات السلامة).</p>
             <p style="font-size: 15px; background: rgba(2, 132, 199, 0.05); padding: 12px; border-radius: 8px; border-right: 4px solid var(--primary); margin-bottom: 0;">
-                <strong>💡 الحل التطويري المطلوب:</strong> في أول دقيقتين من المكالمة، لا تتحدث عن الدورات أبداً. اطرح أسئلة استكشافية مفتوحة مثل: (كم سنة خبرة عندك؟، وش المسمى الوظيفي الحالي؟، وش المشكلة الأساسية اللي تعطلك بالعمل؟)، واجعل العميل يشرح مشكلته بالكامل أولاً.
+                <strong>💡 الحل التطويري المطلوب:</strong> في أول دقيقتين من المكالمة، لا تتحدث عن الدورات أبداً. اطرح أسئلة استكشافية مفتوحة مثل: (كم سنة خبرة عندك؟، وش المسمى الوظيفي الحالي؟، وش المشكلة الأساسية اللي تعطلك بالعمل؟),واجعل العميل يشرح مشكلته بالكامل أولاً.
             </p>
         `;
     } 
