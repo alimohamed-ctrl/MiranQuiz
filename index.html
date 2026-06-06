@@ -15,46 +15,51 @@
             --primary: #38bdf8; --primary-hover: #0ea5e9; --border-color: #334155;
             --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
         }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 60px 20px; transition: all 0.4s ease; display: flex; align-items: center; min-height: 80vh; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 50px 20px; transition: all 0.4s ease; min-height: 90vh; display: flex; align-items: center; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
-        .container { max-width: 900px; margin: 0 auto; width: 100%; animation: fadeInUp 0.6s ease-out; position: relative; }
+        .container { max-width: 840px; margin: 0 auto; width: 100%; animation: fadeInUp 0.6s ease-out; position: relative; }
         
         .theme-toggle { position: absolute; top: -40px; left: 0; background: var(--border-color); border: none; padding: 10px 16px; border-radius: 20px; cursor: pointer; color: var(--text-color); font-weight: 600; font-size: 13px; transition: all 0.2s; }
         .theme-toggle:hover { transform: scale(1.05); }
 
-        .welcome-header { text-align: center; margin-bottom: 50px; }
-        .welcome-header h1 { font-size: 36px; font-weight: 800; margin: 0 0 12px 0; color: var(--text-color); }
-        .welcome-header p { color: var(--text-muted); font-size: 16px; margin: 0; }
+        .welcome-header { text-align: center; margin-bottom: 45px; }
+        .welcome-header h1 { font-size: 34px; font-weight: 800; margin: 0 0 12px 0; color: var(--text-color); }
+        .welcome-header p { color: var(--text-muted); font-size: 15px; margin: 0; }
 
-        /* شبكة الكروت التفاعلية الهندسية */
-        .portal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 30px; margin-top: 20px; }
+        /* مصفوفة المستطيلات العمودية المتناسقة للفرع */
+        .portal-stack { display: flex; flex-direction: column; gap: 25px; margin-top: 10px; }
         
-        .portal-card {
-            background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 24px; padding: 40px 30px;
-            text-align: center; box-shadow: var(--shadow); transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;
+        .portal-rect-card {
+            background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 35px;
+            box-shadow: var(--shadow); transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; align-items: center; justify-content: space-between; gap: 30px; text-align: right;
         }
         
-        /* أنيميشن التمرير Hover الحركي الممتاز */
-        .portal-card:hover { transform: translateY(-8px); border-color: var(--primary); box-shadow: 0 25px 30px -5px rgba(2, 132, 199, 0.08); }
-        [data-theme="dark"] .portal-card:hover { box-shadow: 0 25px 30px -5px rgba(56, 189, 248, 0.15); }
+        .portal-rect-card:hover { transform: translateY(-4px); border-color: var(--primary); box-shadow: 0 20px 25px -5px rgba(2, 132, 199, 0.06); }
+        [data-theme="dark"] .portal-rect-card:hover { box-shadow: 0 20px 25px -5px rgba(56, 189, 248, 0.12); }
 
-        .card-icon { font-size: 50px; margin-bottom: 20px; display: inline-block; transition: transform 0.3s ease; }
-        .portal-card:hover .card-icon { transform: scale(1.15) rotate(5deg); }
+        .card-main-content { flex: 1; }
+        .card-title-area { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .card-icon { font-size: 32px; }
+        .card-title { font-size: 20px; font-weight: 700; margin: 0; color: var(--text-color); }
+        .card-desc { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin: 0; }
 
-        .card-title { font-size: 22px; font-weight: 700; margin: 0 0 12px 0; color: var(--text-color); }
-        .card-desc { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin: 0 0 30px 0; min-height: 70px; }
-
+        .btn-area { min-width: 180px; }
         .portal-btn {
-            display: block; width: 100%; padding: 16px; background: var(--primary); color: white;
-            border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer;
-            text-decoration: none; transition: all 0.25s ease; box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.1);
+            display: block; width: 100%; padding: 15px; background: var(--primary); color: white;
+            border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
+            text-decoration: none; transition: all 0.25s ease; text-align: center; box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.1);
             box-sizing: border-box;
         }
-        .portal-btn:hover { background: var(--primary-hover); box-shadow: 0 10px 15px -3px rgba(2, 132, 199, 0.2); }
+        .portal-btn:hover { background: var(--primary-hover); box-shadow: 0 10px 15px -3px rgba(2, 132, 199, 0.15); }
 
-        .footer { text-align: center; margin-top: 60px; font-size: 13px; color: var(--text-muted); width: 100%; }
+        @media (max-width: 768px) {
+            .portal-rect-card { flex-direction: column; text-align: center; padding: 30px; gap: 20px; }
+            .card-title-area { justify-content: center; }
+            .btn-area { width: 100%; }
+        }
+        .footer { text-align: center; margin-top: 50px; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 20px; }
     </style>
 </head>
 <body>
@@ -64,32 +69,40 @@
 
     <div class="welcome-header">
         <h1>مركز مران القادة للتدريب</h1>
-        <p>مرحباً بك في المنصة الذكية الموحدة لتطوير وتقييم مهارات مبيعات الفرع الاستشارية</p>
+        <p>البوابة الرقمية الموحدة لتطوير الأداء وقياس الكفاءة الاستشارية لفريق المبيعات</p>
     </div>
 
-    <div class="portal-grid">
-        <!-- الكرت الأول: منصة الاختبارات المعتمدة -->
-        <div class="portal-card">
-            <div>
-                <span class="card-icon">🏆</span>
-                <h2 class="card-title">منصة التقييم والاختبارات</h2>
-                <p class="card-desc">قيّم مهاراتك البيعية الفورية عبر حل 10 أسئلة استشارية عشوائية متوازنة تسحب مباشرة من مخزن الأسوق ومقاسة بالعداد التنازلي التنبيهي.</p>
+    <div class="portal-stack">
+        <!-- الجزء الأول: التدريب والمحاكاة (في الأعلى) -->
+        <div class="portal-rect-card">
+            <div class="card-main-content">
+                <div class="card-title-area">
+                    <span class="card-icon">🤖</span>
+                    <h2 class="card-title">محاكي المبيعات الاستشاري</h2>
+                </div>
+                <p class="card-desc">بيئة تدريبية تفاعلية تضعك في مواجهة سيناريوهات حية تحاكي مكالمات العملاء الواقعية، لتطوير مهارات إدارة الحوار، واكتشاف الاحتياجات غير الظاهرة، واحتواء الاعتراضات بحرفية لقيادة النقاش نحو حلول تدريبية ناجحة.</p>
             </div>
-            <a href="quiz.html" class="portal-btn">دخول منصة الاختبار ⏱️</a>
+            <div class="btn-area">
+                <a href="training.html" class="portal-btn">دخول المحاكاة ➡️</a>
+            </div>
         </div>
 
-        <!-- الكرت الثاني: محاكي المبيعات التفاعلي -->
-        <div class="portal-card">
-            <div>
-                <span class="card-icon">🤖</span>
-                <h2 class="card-title">محاكي المبيعات الاستشاري</h2>
-                <p class="card-desc">عش تجربة محاكاة حية لمكالمات البيع الحقيقية وتفاعل مع اعتراضات العملاء وطلباتهم عبر سيناريوهات حوارية متفرعة تقيس كفاءتك لإغلاق الصفقات.</p>
+        <!-- الجزء الثاني: التقييم والاختبارات (في الأسفل) -->
+        <div class="portal-rect-card">
+            <div class="card-main-content">
+                <div class="card-title-area">
+                    <span class="card-icon">🏆</span>
+                    <h2 class="card-title">منصة التقييم والاختبارات المعتمدة</h2>
+                </div>
+                <p class="card-desc">أداة قياس مهنية متخصصة لتقييم الكفاءة الفنية والبيعية للموظف في فرز متطلبات العملاء بدقة، ومطابقتها مع الشهادات الاحترافية والحقائب التدريبية الدولية المعتمدة لدى المركز بآلية قياس زمنية محددة.</p>
             </div>
-            <a href="training.html" class="portal-btn" style="background: var(--primary);">دخول محاكي التدريب ➡️</a>
+            <div class="btn-area">
+                <a href="quiz.html" class="portal-btn" style="background: #0f172a;">بدء الاختبار ⏱️</a>
+            </div>
         </div>
     </div>
 
-    <div class="footer">منصة مران الرقمية الموحدة © 2026</div>
+    <div class="footer">منصة مران الاستشارية الموحدة © 2026</div>
 </div>
 
 <script>
@@ -99,7 +112,6 @@
             document.getElementById('themeBtn').innerText = "☀️ الوضع المضيء";
         }
     });
-
     function toggleTheme() {
         const currentTheme = document.documentElement.getAttribute('data-theme');
         const themeBtn = document.getElementById('themeBtn');
@@ -109,7 +121,7 @@
             localStorage.setItem('theme', 'light');
         } else {
             document.documentElement.setAttribute('data-theme', 'dark');
-            themeBtn.innerText = "☀️ الوضع المضيء";
+            themeBtn.innerText = "☀️ الوضع Mضيء";
             localStorage.setItem('theme', 'dark');
         }
     }
