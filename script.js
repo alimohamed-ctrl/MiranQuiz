@@ -1,6 +1,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxiIoAgbzsfWSc3lCwTW9Dv-TPKyvz0VbYh8fWc_iJPpXL5R9wp3pXpeWExQLvIhqOy4w/exec";
 let todayQuestions = [];
-let timeLeft = 900; // 15 دقيقة
+let timeLeft = 900; 
 let timerInterval = null;
 let employeeName = "";
 let currentQuestionIndex = 0; 
@@ -33,7 +33,6 @@ async function preloadQuizData() {
     try {
         const response = await fetch(API_URL);
         todayQuestions = await response.json();
-        
         const startBtn = document.getElementById('start-btn');
         startBtn.disabled = false;
         startBtn.innerText = "ابدأ الاختبار الآن ⏱️";
@@ -55,7 +54,6 @@ function startQuiz() {
     employeeName = nameInput;
     document.getElementById('login-view').style.display = 'none';
     document.getElementById('quiz-view').style.display = 'block';
-
     buildQuestionNavCircles(); 
     displayCurrentQuestion(); 
     startTimer(); 
@@ -83,7 +81,6 @@ function buildQuestionNavCircles() {
 function displayCurrentQuestion() {
     const quizContainer = document.getElementById('quiz-container');
     quizContainer.innerHTML = "";
-    
     const q = todayQuestions[currentQuestionIndex];
     let optionsHTML = "";
     q.options.forEach(opt => {
@@ -93,7 +90,6 @@ function displayCurrentQuestion() {
             optionsHTML += `<label class="option-label"><input type="radio" name="currentQ" value="${cleanedOpt}" ${isChecked} onchange="saveAnswer('${cleanedOpt}')"><span>${cleanedOpt}</span></label>`;
         }
     });
-    
     quizContainer.innerHTML += `<div class="question-block"><div style="font-weight:600; margin-bottom:18px; font-size:17px;">سؤال ${currentQuestionIndex + 1}: ${q.question}</div>${optionsHTML}</div>`;
     document.getElementById('prev-btn').style.visibility = currentQuestionIndex === 0 ? 'hidden' : 'visible';
     controlNavigationButtons();
@@ -114,7 +110,6 @@ function controlNavigationButtons() {
     const isLastQuestion = currentQuestionIndex === todayQuestions.length - 1;
     const answeredTotalCount = Object.keys(userAnswers).length;
     const hasSolvedAll = answeredTotalCount === todayQuestions.length;
-
     const nextBtn = document.getElementById('next-btn');
     const submitBtn = document.getElementById('submit-btn');
 
@@ -227,7 +222,6 @@ async function submitQuiz(isTimeOut = false) {
 function generatePerformanceAnalysis(needIdentTotal, needIdentMistakes, courseMapTotal, courseMapMistakes) {
     const container = document.getElementById('performance-analysis-container');
     container.innerHTML = "";
-
     let needScore = needIdentTotal > 0 ? (needIdentTotal - needIdentMistakes) : 0;
     let courseScore = courseMapTotal > 0 ? (courseMapTotal - courseMapMistakes) : 0;
     let needPercent = needIdentTotal > 0 ? Math.round((needScore / needIdentTotal) * 100) : 100;
@@ -236,18 +230,8 @@ function generatePerformanceAnalysis(needIdentTotal, needIdentMistakes, courseMa
     let needBadge = needPercent === 100 ? "👑 ممتاز" : needPercent >= 70 ? "🟡 جيد" : "❌ يحتاج تطوير";
     let courseBadge = coursePercent === 100 ? "👑 ممتاز" : coursePercent >= 70 ? "🟡 جيد" : "❌ يحتاج تطوير";
 
-    let analysisHTML = `<div style="margin: 25px 0; padding: 25px; background: rgba(148, 163, 184, 0.04); border-radius: 14px; border: 1px solid var(--border-color); text-align: right;"><h3 style="margin-top: 0; color: var(--primary); font-size: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">📊 لوحة التحليل ومؤشرات الأداء المباشرة (KPIs):</h3><div class="kpi-card"><span class="kpi-title">🎯 محور تشخيص وتحديد احتياج العميل:</span><span class="kpi-score" style="color: ${needPercent >= 70 ? 'var(--success)' : 'var(--danger)'}">${needScore} من ${needIdentTotal} (${needPercent}%) - ${needBadge}</span></div><div class="kpi-card"><span class="kpi-title">💡 محور ربط وتوجيه الدورة التدريبية الحل:</span><span class="kpi-score" style="color: ${coursePercent >= 70 ? 'var(--success)' : 'var(--danger)'}">${courseScore} من ${courseMapTotal} (${coursePercent}%) - ${courseBadge}</span></div><h4 style="margin: 20px 0 10px 0; color: var(--primary); font-size: 16px;">💡 التوصيات الاستشارية المخصصة لأدائك:</h4>`;
-
-    if (needIdentMistakes === 0 && courseMapMistakes === 0) {
-        analysisHTML += `<p style="font-size: 14px; color: var(--text-muted);">كفاءة استشارية ممتازة جداً في تلبية طلبات واحتياجات عملاء مركز مران القادة للتدريب!</p>`;
-    } else if (needIdentMistakes > 0 && courseMapMistakes === 0) {
-        analysisHTML += `<p style="font-size: 14px; color: var(--text-muted);">لديك مهارة ربط دورات ممتازة، ولكن تحتاج إلى تحسين مهارة الاستماع وبناء أسئلة التشخيص وتحديد الاحتياج لعدم التسرع بالحل.</p>`;
-    } else if (needIdentMistakes === 0 && courseMapMistakes > 0) {
-        analysisHTML += `<p style="font-size: 14px; color: var(--text-muted);">أنت تشخص الوجع بشكل ممتاز، ولكن تقع في مشكلة اختيار الدورة أو الحقيبة التدريبية الفنية غير المطابقة لطلب العميل تماماً من موقع مران القادة.</p>`;
-    } else {
-        analysisHTML += `<p style="font-size: 14px; color: var(--text-muted);">توجد فجوة مركبة تحتاج لمراجعة حثيثة لكتالوج دورات مران وتطبيق استراتيجية طرح الأسئلة الاستكشافية المفتوحة أولاً.</p>`;
-    }
-    analysisHTML += `</div>`; container.innerHTML = analysisHTML;
+    let analysisHTML = `<div style="margin: 25px 0; padding: 25px; background: rgba(148, 163, 184, 0.04); border-radius: 14px; border: 1px solid var(--border-color); text-align: right;"><h3 style="margin-top: 0; color: var(--primary); font-size: 18px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px;">📊 لوحة التحليل ومؤشرات الأداء المباشرة (KPIs):</h3><div class="kpi-card"><span class="kpi-title">🎯 محور تشخيص وتحديد احتياج العميل:</span><span class="kpi-score" style="color: ${needPercent >= 70 ? 'var(--success)' : 'var(--danger)'}">${needScore} من ${needIdentTotal} (${needPercent}%) - ${needBadge}</span></div><div class="kpi-card"><span class="kpi-title">💡 محور ربط وتوجيه الدورة التدريبية الحل:</span><span class="kpi-score" style="color: ${coursePercent >= 70 ? 'var(--success)' : 'var(--danger)'}">${courseScore} من ${courseMapTotal} (${coursePercent}%) - ${courseBadge}</span></div></div>`;
+    container.innerHTML = analysisHTML;
 }
 
 function showResultsPage(name, score, needIdentTotal, needIdentMistakes, courseMapTotal, courseMapMistakes) {
@@ -276,10 +260,5 @@ function showResultsPage(name, score, needIdentTotal, needIdentMistakes, courseM
 }
 
 function resetQuizToHome() {
-    if (timerInterval) clearInterval(timerInterval);
-    timeLeft = 900; currentQuestionIndex = 0; furthestQuestionReached = 0; userAnswers = {};
-    document.getElementById('employee-name').value = "";
-    document.getElementById('progressBarFill').style.width = "0%"; document.getElementById('progressPercent').innerText = "0%";
-    document.getElementById('result-view').style.display = 'none'; document.getElementById('login-view').style.display = 'block';
-    preloadQuizData();
+    window.location.href = "index.html"; // إعادة الموظف فوراً للمجمع الرئيسي المشترك
 }
