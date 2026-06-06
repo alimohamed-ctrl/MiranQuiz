@@ -5,7 +5,7 @@ let currentNodeId = "start";
 let nextTargetNodeId = ""; 
 let trustScore = 0; 
 let conversationStep = 1;
-let trainingHistory = []; // مصفوفة لتسجيل خطوات الموظف وتحليل نقاط ضعفه بالكامل
+let trainingHistory = []; // الذاكرة الحية لحفظ مسار المكالمة وعرض التحليل للموظف في النهاية
 
 document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'dark') {
@@ -72,7 +72,9 @@ function renderCurrentDialogueNode() {
             container.appendChild(btn);
         }
     });
-    document.getElementById('dealStepVal').innerText = `${conversationStep} / 5`;
+    
+    // إظهار عداد الخطوات الحرة المتغيرة حسب تفرع المكالمة
+    document.getElementById('dealStepVal').innerText = `خطوة المحادثة الحالية: ${conversationStep}`;
 }
 
 function handleChoiceSelection(choice, originalSpeech) {
@@ -84,6 +86,7 @@ function handleChoiceSelection(choice, originalSpeech) {
     
     let isOptimal = false;
     
+    // الفرز البرمجي الرقمي الذكي لنوعية وخلفية الردود المفتوحة والمغلقة
     if (choice.feedback.includes("🏆") || choice.feedback.includes("✔️") || choice.feedback.includes("أحسنت") || choice.feedback.includes("ممتاز")) {
         trustScore = Math.min(100, trustScore + 20);
         feedbackBox.style.background = "rgba(34, 197, 94, 0.08)"; feedbackBox.style.color = "var(--success)";
@@ -96,7 +99,7 @@ function handleChoiceSelection(choice, originalSpeech) {
         feedbackBox.style.background = "rgba(239, 68, 68, 0.06)"; feedbackBox.style.color = "var(--text-color)";
     }
     
-    // تسجيل الخطوة الحالية في مصفوفة الذاكرة لتحليل الأداء لاحقاً
+    // حقن الخطوة الحوارية في مصفوفة الذاكرة لبناء تقرير تطوير الأداء الختامي
     trainingHistory.push({
         step: conversationStep,
         customerSpeech: originalSpeech,
@@ -110,23 +113,22 @@ function handleChoiceSelection(choice, originalSpeech) {
 }
 
 function proceedToNextNode() { 
-    if (nextTargetNodeId === "finish" || conversationStep >= 5) {
+    // [قفل المحاكاة المرن المطور]: تنتهي اللعبة فقط عند الوصول لعقدة النهاية أو الصفر المطلق
+    if (nextTargetNodeId === "finish" || nextTargetNodeId === "success" || nextTargetNodeId === "fail") {
         const feedbackBox = document.getElementById('feedbackBox');
         document.getElementById('choicesContainer').innerHTML = "";
         document.getElementById('actionArea').style.display = 'none';
         
-        // 1. عرض النتيجة النهائية للمكالمة الكبرى بناء على مجموع النقاط
         if (trustScore >= 70) {
             feedbackBox.style.background = "rgba(34, 197, 94, 0.12)"; feedbackBox.style.color = "var(--success)";
-            feedbackBox.innerHTML = `🏆 <strong>تم إغلاق الصفقة بنجاح (Deal Closed):</strong><br>تهانينا! لقد أدرت مكالمة بيعية استشارية ممتدة وناجحة، وبلغ مؤشر رضا وثقة العميل النهائي <strong>${trustScore}%</strong> مما ساعدك على إقفال البيعة بجدارة رفيعة لمركز مران القادة!`;
+            feedbackBox.innerHTML = `🏆 <strong>تم إغلاق الصفقة بنجاح (Deal Closed):</strong><br>رائع جداً! لقد نجحت في قيادة المكالمة الاستشارية ومواجهة التشعبات بمرونة كاملة، ووصل رضا العميل النهائي إلى <strong>${trustScore}%</strong> مما قادك لتأمين التسجيل بنجاح. ادرس لوحة المراجعة بالأسفل لتطوير ثغراتك الباقية ولتفاديها ميدانياً.`;
             setupEndGameButton("إنهاء وإغلاق المحاكاة الاستشارية", "success");
         } else {
             feedbackBox.style.background = "rgba(239, 68, 68, 0.12)"; feedbackBox.style.color = "var(--danger)";
-            feedbackBox.innerHTML = `❌ <strong>لم تكتمل البيعة (Deal Lost):</strong><br>للأسف لم تنجح في إقفال الصفقة البيعية الحالية. مؤشر ثقة ورضا العميل الإجمالي سجل <strong>${trustScore}%</strong> وهو أقل من الحد المطلوب (70%). راجع كروت تحليل الأداء بالأسفل لمعرفة ثغرات المكالمة وتجنبها.`;
+            feedbackBox.innerHTML = `❌ <strong>لم تكتمل البيعة (Deal Lost):</strong><br>للأسف هربت البيعة؛ لأن مؤشر رضا العميل الإجمالي استقر عند <strong>${trustScore}%</strong> وهو أقل من الحد المطلوب (70%). راجع كروت تحليل الأداء بالأسفل لمعرفة الثغرات والبدء مجدداً.`;
             setupEndGameButton("إعادة محاولة مكالمة بيعية جديدة 🔄", "fail");
         }
         
-        // 2. بناء وعرض كروت مراجعة الأداء التعليمية وتوضيح نقاط الضعف للموظف
         renderTrainingReviewDashboard();
         return;
     }
@@ -136,7 +138,6 @@ function proceedToNextNode() {
     renderCurrentDialogueNode(); 
 }
 
-// دالة بناء لوحة تحليل ومراجعة الأخطاء لتطوير الموظف
 function renderTrainingReviewDashboard() {
     const reviewSection = document.getElementById('review-section');
     const container = document.getElementById('reviewCardsContainer');
@@ -145,26 +146,23 @@ function renderTrainingReviewDashboard() {
     trainingHistory.forEach((item) => {
         const card = document.createElement('div');
         card.className = "review-card";
-        
-        // تلوين حواف الكارت حسب جودة واحترافية الرد لمساعدة العين على الفرز الصامت
         card.style.borderRightColor = item.isOptimal ? "var(--success)" : "var(--danger)";
         
-        let statusBadge = item.isOptimal ? `<span style="color:var(--success); font-weight:700;">[✓ رد استشاري ممتاز]</span>` : `<span style="color:var(--danger); font-weight:700;">[✗ رد يحتاج تحسين وتطوير]</span>`;
+        let statusBadge = item.isOptimal ? `<span style="color:var(--success); font-weight:700;">[✓ رد استشاري متميز]</span>` : `<span style="color:var(--danger); font-weight:700;">[✗ رد يتطلب تحسين وتطوير]</span>`;
         
         card.innerHTML = `
-            <div class="review-q">المرحلة ${item.step} - اعتراض العميل: "${item.customerSpeech}"</div>
-            <div class="review-choice"><strong>ردك المختار:</strong> ${item.selectedOption} ${statusBadge}</div>
+            <div class="review-q">المرحلة الحوارية ${item.step} - كلام العميل: "${item.customerSpeech}"</div>
+            <div class="review-choice"><strong>خيارك المختار:</strong> ${item.selectedOption} ${statusBadge}</div>
             <div class="review-fb" style="background: ${item.isOptimal ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.03)'}; color: ${item.isOptimal ? 'var(--success)' : 'var(--text-color)'}">
-                <strong>التحليل والمقترح البيعي الحل:</strong> ${item.feedback}
+                <strong>التحليل التطويري للرد:</strong> ${item.feedback}
             </div>
         `;
         container.appendChild(card);
     });
-    
     reviewSection.style.display = "block";
 }
 
-// [حل المشكلة الجوهري]: تصفير وإعادة تهيئة كاملة وشاملة لحالة وصلاحيات الزر لمنع تكرار الخطوة الأولى
+// [تفكيك قفلة زر إعادة المحاولة]: تصفير المحرك بالكامل وإرجاع وظيفة الزر للمتابعة الحوارية الطبيعية
 function setupEndGameButton(btnText, status) {
     const actionArea = document.getElementById('actionArea'); actionArea.style.display = 'block';
     const actionBtn = actionArea.querySelector('button'); actionBtn.innerText = btnText;
@@ -173,20 +171,18 @@ function setupEndGameButton(btnText, status) {
         if (status === "success") { 
             window.location.href = "index.html"; 
         } else {
-            // تصفير الأرقام والمسارات بالكامل
             currentNodeId = "start"; 
             nextTargetNodeId = ""; 
             trustScore = 0; 
             conversationStep = 1;
             trainingHistory = []; 
             
-            // إخفاء لوحة التحليل السابقة وإعادة المؤشرات للبداية
             document.getElementById('trustVal').innerText = "0%";
             document.getElementById('review-section').style.display = "none";
             document.getElementById('simulator-content').style.display = 'none';
             document.getElementById('loading-overlay').style.display = 'block';
             
-            // [الحل الجراحي للفخ]: إعادة تعيين نص ووظيفة الزر برمجياً لوضعه الأصلي
+            // [الحل الجراحي الجذري للتعليق]: فك ارتباط دالة التصفير وإرجاع الدالة الأصلية للمتابعة للأمام
             actionBtn.innerText = "متابعة الحوار الاستشاري ➡️";
             actionBtn.onclick = proceedToNextNode;
             
