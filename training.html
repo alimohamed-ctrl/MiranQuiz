@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة محاكاة المبيعات - مران</title>
+    <style>
+        :root { --bg-color: #f8fafc; --card-bg: #ffffff; --text-color: #0f172a; --text-muted: #64748b; --primary: #0284c7; --success: #22c55e; --danger: #ef4444; --border-color: #e2e8f0; --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05); }
+        [data-theme="dark"] { --bg-color: #0f172a; --card-bg: #1e293b; --text-color: #f8fafc; --text-muted: #94a3b8; --primary: #38bdf8; --border-color: #334155; --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 40px 20px; line-height: 1.6; }
+        .container { max-width: 760px; margin: 0 auto; background: var(--card-bg); padding: 40px; border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border-color); position: relative; }
+        .theme-toggle { position: absolute; top: 20px; left: 20px; background: var(--border-color); border: none; padding: 8px 14px; border-radius: 20px; cursor: pointer; color: var(--text-color); }
+        .btn-home { position: absolute; top: 20px; right: 20px; background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; }
+        .simulator-stats { display: flex; justify-content: space-between; background: rgba(148, 163, 184, 0.05); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 30px; font-weight: 700; }
+        .stat-val { color: var(--primary); }
+        .chat-box { background: rgba(148, 163, 184, 0.02); border: 1px solid var(--border-color); border-radius: 14px; padding: 25px; margin-bottom: 25px; border-right: 6px solid #eab308; }
+        .customer-title { font-weight: 700; color: #eab308; margin-bottom: 8px; }
+        .speech-text { font-size: 17px; font-weight: 600; }
+        .feedback-box { display: none; padding: 15px 20px; border-radius: 10px; margin-bottom: 25px; font-weight: 600; }
+        .choice-btn { display: block; width: 100%; padding: 14px 18px; margin: 12px 0; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; text-align: right; font-size: 15px; color: var(--text-color); font-weight: 600; }
+        .choice-btn:hover:not(:disabled) { border-color: var(--primary); transform: translateY(-2px); }
+        .action-area { margin-top: 30px; border-top: 2px solid var(--border-color); padding-top: 20px; display: none; }
+        #loading-overlay { text-align: center; font-weight: 700; color: var(--primary); padding: 50px 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙 الوضع الليلي</button>
+    <a href="index.html" class="btn-home">الرئيسية ↩️</a>
+    <h1 style="text-align: center; margin-top: 20px;">🤖 محاكي المبيعات الاستشاري الذكي</h1>
+    <p style="text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 35px;">تفاعل مع العميل، واجه اعتراضاته بذكاء، واقفل الصفقة بنجاح!</p>
+    <div id="loading-overlay">🔄 جاري استدعاء سيناريو بيعي عشوائي متفرع من المكتبة...</div>
+    <div id="simulator-content" style="display: none;">
+        <div class="simulator-stats">
+            <div>🤝 ثقة ورضا العميل: <span id="trustVal" class="stat-val">100%</span></div>
+            <div>📈 مؤشر تقدم الصفقة: <span id="dealStepVal" class="stat-val">1 / 4</span></div>
+        </div>
+        <div class="chat-box">
+            <div class="customer-title">👤 العميل المحتمل يقول لك:</div>
+            <div class="speech-text" id="customerSpeechText">جاري تحميل السيناريو...</div>
+        </div>
+        <div class="feedback-box" id="feedbackBox"></div>
+        <div id="choicesContainer"></div>
+        <div class="action-area" id="actionArea">
+            <button style="display: block; width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;" onclick="proceedToNextNode()">متابعة الحوار الاستشاري ➡️</button>
+        </div>
+    </div>
+</div>
+<script src="training.js"></script>
+</body>
+</html>
