@@ -41,8 +41,23 @@ async function fetchScenariosFromPool() {
     } catch (error) { console.error(error); }
 }
 
+// [تعديل جراحي فاحص]: لحل مشكلة عدم الانتقال وعرض الخلل في تسميات الشيت إن وُجد
 function renderCurrentDialogueNode() {
     const node = currentScenario.nodes[currentNodeId];
+    
+    if (!node) {
+        // لو الكود تاه بسبب حرف ناقص أو مسافة في الشيت، هيظهرلك المشكلة هنا فوراً لتعديلها
+        document.getElementById('customerSpeechText').innerHTML = `
+            <span style="color:var(--danger)">⚠️ خطأ في تفرع البيانات داخل الشيت:</span><br>
+            السيرفر يحاول البحث عن عقدة حوارية باسم (<strong>${currentNodeId}</strong>) ولكنها غير موجودة بالعمود B بجدول التدريب!<br>
+            <small style="color:var(--text-muted); font-weight:400;">يرجى مراجعة عمود NextNode في الخطوة السابقة للتأكد من تطابقه بالملي مع اسم الـ NodeID التالي.</small>
+        `;
+        document.getElementById('choicesContainer').innerHTML = "";
+        document.getElementById('feedbackBox').style.display = 'none';
+        document.getElementById('actionArea').style.display = 'none';
+        return;
+    }
+    
     document.getElementById('customerSpeechText').innerText = node.customerSpeech;
     document.getElementById('feedbackBox').style.display = 'none';
     document.getElementById('actionArea').style.display = 'none';
@@ -87,14 +102,19 @@ function handleChoiceSelection(choice) {
     document.getElementById('trustVal').innerText = `${trustScore}%`;
 }
 
-function proceedToNextNode() { currentNodeId = nextTargetNodeId; conversationStep++; renderCurrentDialogueNode(); }
+function proceedToNextNode() { 
+    currentNodeId = nextTargetNodeId; 
+    conversationStep++; 
+    renderCurrentDialogueNode(); 
+}
 
 function setupEndGameButton(btnText) {
     const actionArea = document.getElementById('actionArea'); actionArea.style.display = 'block';
     const actionBtn = actionArea.querySelector('button'); actionBtn.innerText = btnText;
     actionBtn.onclick = () => {
-        if (nextTargetNodeId === "success") { window.location.href = "index.html"; } 
-        else {
+        if (nextTargetNodeId === "success") { 
+            window.location.href = "index.html"; 
+        } else {
             currentNodeId = "start"; nextTargetNodeId = ""; trustScore = 100; conversationStep = 1;
             document.getElementById('trustVal').innerText = "100%";
             document.getElementById('simulator-content').style.display = 'none';
