@@ -3,7 +3,7 @@ let allScenarios = [];
 let currentScenario = null;
 let currentNodeId = "start";
 let nextTargetNodeId = ""; 
-let trustScore = 100;
+let trustScore = 0; // تم التعديل ليبدأ عداد الثقة والرضا فارغاً بنسبة 0%
 let conversationStep = 1;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -37,16 +37,17 @@ async function fetchScenariosFromPool() {
         currentScenario = allScenarios[Math.floor(Math.random() * allScenarios.length)];
         document.getElementById('loading-overlay').style.display = 'none';
         document.getElementById('simulator-content').style.display = 'block';
+        
+        // إظهار العداد الابتدائي 0% على الشاشة فوراً
+        document.getElementById('trustVal').innerText = `${trustScore}%`;
         renderCurrentDialogueNode();
     } catch (error) { console.error(error); }
 }
 
-// [تعديل جراحي فاحص]: لحل مشكلة عدم الانتقال وعرض الخلل في تسميات الشيت إن وُجد
 function renderCurrentDialogueNode() {
     const node = currentScenario.nodes[currentNodeId];
     
     if (!node) {
-        // لو الكود تاه بسبب حرف ناقص أو مسافة في الشيت، هيظهرلك المشكلة هنا فوراً لتعديلها
         document.getElementById('customerSpeechText').innerHTML = `
             <span style="color:var(--danger)">⚠️ خطأ في تفرع البيانات داخل الشيت:</span><br>
             السيرفر يحاول البحث عن عقدة حوارية باسم (<strong>${currentNodeId}</strong>) ولكنها غير موجودة بالعمود B بجدول التدريب!<br>
@@ -77,46 +78,61 @@ function renderCurrentDialogueNode() {
 function handleChoiceSelection(choice) {
     document.querySelectorAll('.choice-btn').forEach(btn => btn.disabled = true);
     nextTargetNodeId = choice.nextNode;
+    
     const feedbackBox = document.getElementById('feedbackBox');
     feedbackBox.style.display = 'block'; feedbackBox.innerText = choice.feedback;
     
-    if (nextTargetNodeId === "success") {
+    // [ميكانيكية حساب العداد التراكمي]: زيادة ونقصان النسبة بناءً على جودة واحترافية خيار الرد
+    if (choice.feedback.includes("🏆") || choice.feedback.includes("✔️") || choice.feedback.includes("أحسنت") || choice.feedback.includes("ممتاز")) {
+        trustScore = Math.min(100, trustScore + 25);
+        feedbackBox.style.background = "rgba(34, 197, 94, 0.08)"; feedbackBox.style.color = "var(--success)";
+    } else if (choice.feedback.includes("🟡") || choice.feedback.includes("مقبول") || choice.feedback.includes("تنبيه")) {
         trustScore = Math.min(100, trustScore + 10);
-        feedbackBox.style.background = "rgba(34, 197, 94, 0.12)"; feedbackBox.style.color = "var(--success)";
-        feedbackBox.innerHTML = `🏆 <strong>رائع جداً! نجحت في إغلاق الصفقة (Deal Closed):</strong><br>` + choice.feedback;
-        setupEndGameButton("إغلاق المحاكاة والعودة للرئيسية");
-    } else if (nextTargetNodeId === "fail") {
-        trustScore = Math.max(0, trustScore - 30);
-        feedbackBox.style.background = "rgba(239, 68, 68, 0.12)"; feedbackBox.style.color = "var(--danger)";
-        feedbackBox.innerHTML = `❌ <strong>للأسف هرب العميل وضاعت الصفقة (Deal Lost):</strong><br>` + choice.feedback;
-        setupEndGameButton("إعادة محاولة سيناريو تفاعلي جديد 🔄");
+        feedbackBox.style.background = "rgba(234, 179, 8, 0.08)"; feedbackBox.style.color = "#eab308";
     } else {
-        if(choice.feedback.includes("أحسنت") || choice.feedback.includes("ممتاز") || choice.feedback.includes("صحيح")) {
-            feedbackBox.style.background = "rgba(34, 197, 94, 0.08)"; feedbackBox.style.color = "var(--success)";
-            trustScore = Math.min(100, trustScore + 5);
-        } else {
-            feedbackBox.style.background = "rgba(239, 68, 68, 0.06)"; trustScore = Math.max(10, trustScore - 15);
-        }
-        document.getElementById('actionArea').style.display = 'block';
+        trustScore = Math.max(0, trustScore - 15);
+        feedbackBox.style.background = "rgba(239, 68, 68, 0.06)"; feedbackBox.style.color = "var(--text-color)";
     }
+    
     document.getElementById('trustVal').innerText = `${trustScore}%`;
+    document.getElementById('actionArea').style.display = 'block';
 }
 
 function proceedToNextNode() { 
+    // [فحص جدار الإغلاق]: لو وصلنا لنهاية الخطوة الرابعة بالكامل، يتم التقييم بناءً على مجموع النقاط المتراكم
+    if (nextTargetNodeId === "finish" || currentNodeId === "close") {
+        const feedbackBox = document.getElementById('feedbackBox');
+        document.getElementById('choicesContainer').innerHTML = "";
+        document.getElementById('actionArea').style.display = 'none';
+        
+        if (trustScore >= 70) {
+            feedbackBox.style.background = "rgba(34, 197, 94, 0.12)";
+            feedbackBox.style.color = "var(--success)";
+            feedbackBox.innerHTML = `🏆 <strong>تم إغلاق الصفقة بنجاح (Deal Closed):</strong><br>تهانينا! لقد نجحت في إدارة مكالمة بيعية استشارية متكاملة الأركان بمركز مران. قمت باستكشاف الاحتياج، واحتواء اعتراض السعر باحترافية، وربطت الحقيبة المعتمدة المناسبة بوجع العميل، وبلغ مؤشر رضا العميل النهائي <strong>${trustScore}%</strong> مما قادك لإتمام إقفال البيعة بتميز رفيع!`;
+            setupEndGameButton("إنهاء وإغلاق المحاكاة السعيدة", "success");
+        } else {
+            feedbackBox.style.background = "rgba(239, 68, 68, 0.12)";
+            feedbackBox.style.color = "var(--danger)";
+            feedbackBox.innerHTML = `❌ <strong>لم تكتمل البيعة (Deal Lost):</strong><br>للأسف هرب العميل ولم تنجح في إقفال الصفقة بنجاح. السبب: مؤشر رضا وثقة العميل الإجمالي بلغ <strong>${trustScore}%</strong> وهو أقل من الحد الأدنى المطلوب لإتمام البيع الاستشاري (70%). حاول التركيز في المرة القادمة على مطابقة القيمة بدقة واحتواء العميل بدبلوماسية أعمق.`;
+            setupEndGameButton("إعادة محاولة مكالمة بيعية جديدة 🔄", "fail");
+        }
+        return;
+    }
+
     currentNodeId = nextTargetNodeId; 
     conversationStep++; 
     renderCurrentDialogueNode(); 
 }
 
-function setupEndGameButton(btnText) {
+function setupEndGameButton(btnText, status) {
     const actionArea = document.getElementById('actionArea'); actionArea.style.display = 'block';
     const actionBtn = actionArea.querySelector('button'); actionBtn.innerText = btnText;
     actionBtn.onclick = () => {
-        if (nextTargetNodeId === "success") { 
+        if (status === "success") { 
             window.location.href = "index.html"; 
         } else {
-            currentNodeId = "start"; nextTargetNodeId = ""; trustScore = 100; conversationStep = 1;
-            document.getElementById('trustVal').innerText = "100%";
+            currentNodeId = "start"; nextTargetNodeId = ""; trustScore = 0; conversationStep = 1;
+            document.getElementById('trustVal').innerText = "0%";
             document.getElementById('simulator-content').style.display = 'none';
             document.getElementById('loading-overlay').style.display = 'block';
             fetchScenariosFromPool();
