@@ -1,4 +1,4 @@
-const API_URL = "ضَع_رابط_WEB_APP_URL_الخاص_بك_هنا";
+const API_URL = "https://script.google.com/macros/s/AKfycbxiIoAgbzsfWSc3lCwTW9Dv-TPKyvz0VbYh8fWc_iJPpXL5R9wp3pXpeWExQLvIhqOy4w/exec";
 let todayQuestions = [];
 let timeLeft = 900; // 15 دقيقة
 let timerInterval = null;
